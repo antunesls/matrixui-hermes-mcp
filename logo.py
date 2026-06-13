@@ -7,6 +7,7 @@ Pode ser executado diretamente para visualizar o logo no terminal:
 
 from __future__ import annotations
 
+from rich.align import Align
 from rich.console import Console, RenderableType
 from rich.text import Text
 
@@ -42,34 +43,30 @@ _FOOTER_KEYWORDS = ("booting interface", "neural display", "secure shell")
 _BINARY_KEYWORDS = ("1 0 1", "0 1 0", "1 1 0", "0 0 1")
 
 
-def render_logo(cor: str = "#00ff9c", largura: int = 60) -> RenderableType:
-    """Retorna o logo do projeto como um renderable Rich com coloração por linha.
+def render_logo(cor: str = "#00ff00", largura: int = 60) -> RenderableType:
+    """Retorna o logo do projeto como um renderable Rich centralizado.
 
     Args:
-        cor: Cor hex neon do tema (default: verde neon). Aplicada à borda,
-             status e rodapé. Os blocos ██ usam sempre #00ff00 (Matrix clássico).
-        largura: Ignorado — logo tem largura fixa definida pelo art. Mantido
-                 por compatibilidade.
+        cor: Cor hex neon do logo (default: #00ff00 — verde Matrix clássico).
+        largura: Ignorado — logo tem largura fixa. Mantido por compatibilidade.
 
     Returns:
-        Rich Text com coloração inteligente por tipo de linha.
+        Rich renderable centralizado com coloração uniforme na cor escolhida.
     """
-    texto = Text(justify="left", no_wrap=True)
+    texto = Text(no_wrap=True)
     for linha in MATRIXUI_LOGO_ASCII.splitlines():
         estilo = _estilo_linha(linha, cor)
         texto.append(linha + "\n", style=estilo)
-    return texto
+    return Align.center(texto)
 
 
 def _estilo_linha(linha: str, cor: str) -> str:
-    """Determina o estilo Rich para uma linha do logo."""
+    """Determina o estilo Rich para uma linha do logo (tudo na mesma cor)."""
     if "██" in linha:
-        return "bold #00ff00"
+        return f"bold {cor}"
     if any(kw in linha for kw in _STATUS_KEYWORDS):
         return f"bold {cor}"
-    if any(kw in linha for kw in _FOOTER_KEYWORDS):
-        return f"dim {cor}"
-    if any(kw in linha for kw in _BINARY_KEYWORDS):
+    if any(kw in linha for kw in _FOOTER_KEYWORDS) or any(kw in linha for kw in _BINARY_KEYWORDS):
         return f"dim {cor}"
     return cor
 

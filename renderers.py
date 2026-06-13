@@ -393,7 +393,7 @@ def render_boas_vindas(dados: dict[str, Any]) -> RenderableType:
     versao = str(dados.get("versao", VERSION))
     boot_time = datetime.now().strftime("%Y-%m-%d  %H:%M:%S")
 
-    logo = render_logo(cor=cor)
+    logo = render_logo(cor="#00ff00")
 
     # Grade de informações do sistema.
     info = Table.grid(padding=(0, 4))
