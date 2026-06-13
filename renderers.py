@@ -40,8 +40,21 @@ BLOCOS = " ▁▂▃▄▅▆▇█"
 BLOCO_CHEIO = "█"
 BLOCO_VAZIO = "░"
 
-# Largura padrão das barras de progresso (ocupa quase todo o painel).
-LARGURA_BARRA = 52
+# --------------------------------------------------------------------------- #
+# Sistema de largura dinâmica — atualizado pela TUI antes de cada render
+# --------------------------------------------------------------------------- #
+_PANEL_WIDTH: int = 80  # fallback para terminal padrão
+
+
+def set_panel_width(width: int) -> None:
+    """Chamado por tui_display.py para informar a largura real do painel."""
+    global _PANEL_WIDTH
+    _PANEL_WIDTH = max(60, width)
+
+
+def _pw(frac: float = 1.0, minus: int = 0) -> int:
+    """Fração da largura do painel menos margem fixa. Mínimo de 20."""
+    return max(20, int(_PANEL_WIDTH * frac) - minus)
 
 
 # --------------------------------------------------------------------------- #
@@ -64,8 +77,10 @@ def _num(valor: Any, default: float = 0.0) -> float:
         return default
 
 
-def _barra(pct: float, largura: int = LARGURA_BARRA) -> Text:
-    """Barra de progresso colorida por limiar."""
+def _barra(pct: float, largura: int | None = None) -> Text:
+    """Barra de progresso colorida por limiar, escala com o painel."""
+    if largura is None:
+        largura = _pw(0.88, 10)
     cor = _cor_por_limiar(pct)
     cheios = int(round((pct / 100.0) * largura))
     t = Text()
@@ -81,6 +96,11 @@ def _figlet(texto: str, font: str = "standard") -> str:
         return figlet_format(texto, font=font)
     except Exception:
         return texto.upper()
+
+
+def _sep() -> Text:
+    """Separador horizontal que acompanha a largura do painel."""
+    return Text("─" * _pw(0.92), style=DIM)
 
 
 # --------------------------------------------------------------------------- #
@@ -197,13 +217,15 @@ def render_previsao_tempo(dados: dict[str, Any]) -> RenderableType:
             linhas.append(f"\n🌬  {dia['vento']}", style=DIM)
         linhas.append("\n")
 
+        # Largura do card escala com o painel: 4 cards cabem entre 32 e 54 chars.
+        card_w = max(32, min(54, _pw(1.0) // max(1, len(dias)) - 2))
         cards.append(
             Panel(
                 Align.center(linhas),
                 title=f"[bold]{dia.get('dia', '—')}[/bold]",
                 border_style=cor,
-                padding=(1, 3),
-                width=32,
+                padding=(1, max(2, card_w // 10)),
+                width=card_w,
             )
         )
 
@@ -260,8 +282,9 @@ def render_tabela(dados: dict[str, Any]) -> RenderableType:
             celulas.append("")
         tabela.add_row(*celulas[: len(colunas)])
 
+    n = len(linhas)
     rodape = Text(justify="center")
-    rodape.append(f"── {len(linhas)} registro{'s' if len(linhas) != 1 else ''} ──", style=DIM)
+    rodape.append(f"── {n} registro{'s' if n != 1 else ''} ──", style=DIM)
 
     header = Rule(title=f"[bold {NEON_CYAN}]{titulo or 'Tabela'}[/bold {NEON_CYAN}]", style=DIM) if titulo else Text()
     return Group(header, tabela, rodape)
@@ -289,7 +312,7 @@ def render_grafico(dados: dict[str, Any]) -> RenderableType:
         plt.clear_figure()
         plt.bar(labels, valores)
         plt.title(f"{titulo} ({unidade})" if unidade else titulo)
-        plt.plotsize(88, 28)
+        plt.plotsize(_pw(0.95), max(20, min(40, _PANEL_WIDTH // 5)))
         plt.theme("dark")
         corpo = Text.from_ansi(plt.build())
     except Exception:
@@ -306,7 +329,7 @@ def _grafico_fallback(
     if not valores:
         return Text("(sem dados)", style=DIM)
 
-    LARGURA = 52
+    LARGURA = _pw(0.88, 10)
     pico = max(valores) or 1.0
     minimo = min(valores)
     largura_label = max((len(lb) for lb in labels), default=4)
@@ -376,21 +399,52 @@ def render_metricas(dados: dict[str, Any]) -> RenderableType:
 
     grupo: list[RenderableType] = [sumario, Text()]
 
-    for m, (pct, cor, valor, unidade) in zip(metricas, pcts):
-        label = str(m.get("label", "—"))
-        alerta_ico = "  ⚠ " if pct >= 85 else ""
+    wide = _PANEL_WIDTH > 110
 
-        label_txt = Text(f"  {label}", style="bold")
-        grupo.append(label_txt)
+    if wide:
+        # Layout 2 colunas: pares de métricas lado a lado.
+        bar_w = _pw(0.40, 14)
+        for i in range(0, len(metricas), 2):
+            par = list(zip(metricas, pcts))[i : i + 2]
+            row_grid = Table.grid(padding=(0, 3), expand=True)
+            row_grid.add_column(ratio=1)
+            if len(par) > 1:
+                row_grid.add_column(ratio=1)
 
-        linha_barra = Text()
-        linha_barra.append("  ")
-        linha_barra.append(BLOCO_CHEIO * int(round((pct / 100.0) * LARGURA_BARRA)), style=f"bold {cor}")
-        linha_barra.append(BLOCO_VAZIO * (LARGURA_BARRA - int(round((pct / 100.0) * LARGURA_BARRA))), style=DIM)
-        linha_barra.append(f"  {valor:g}{unidade}", style=f"bold {cor}")
-        linha_barra.append(alerta_ico, style=f"bold {NEON_RED}")
-        grupo.append(linha_barra)
-        grupo.append(Text())
+            celulas: list[RenderableType] = []
+            for m, (pct, cor, valor, unidade) in par:
+                label = str(m.get("label", "—"))
+                alerta_ico = " ⚠" if pct >= 85 else ""
+                cheios = int(round((pct / 100.0) * bar_w))
+                cel = Text()
+                cel.append(f"{label:<10}", style="bold")
+                cel.append("\n")
+                cel.append(BLOCO_CHEIO * cheios, style=f"bold {cor}")
+                cel.append(BLOCO_VAZIO * (bar_w - cheios), style=DIM)
+                cel.append(f"  {valor:g}{unidade}", style=f"bold {cor}")
+                cel.append(alerta_ico, style=f"bold {NEON_RED}")
+                celulas.append(cel)
+
+            row_grid.add_row(*celulas)
+            grupo.append(row_grid)
+            grupo.append(Text())
+    else:
+        # Layout 1 coluna: barra larga.
+        bar_w = _pw(0.88, 10)
+        for m, (pct, cor, valor, unidade) in zip(metricas, pcts):
+            label = str(m.get("label", "—"))
+            alerta_ico = "  ⚠ " if pct >= 85 else ""
+            cheios = int(round((pct / 100.0) * bar_w))
+
+            grupo.append(Text(f"  {label}", style="bold"))
+            linha_barra = Text()
+            linha_barra.append("  ")
+            linha_barra.append(BLOCO_CHEIO * cheios, style=f"bold {cor}")
+            linha_barra.append(BLOCO_VAZIO * (bar_w - cheios), style=DIM)
+            linha_barra.append(f"  {valor:g}{unidade}", style=f"bold {cor}")
+            linha_barra.append(alerta_ico, style=f"bold {NEON_RED}")
+            grupo.append(linha_barra)
+            grupo.append(Text())
 
     return Panel(
         Group(*grupo),
@@ -417,7 +471,7 @@ def render_alerta(dados: dict[str, Any]) -> RenderableType:
     icone = icones.get(nivel, "🚨")
 
     arte = _figlet(texto, font="standard")
-    moldura = "═" * 62
+    moldura = "═" * _pw(0.92, 4)
 
     icone_line = Text(f"{icone}  {icone}  {icone}", style=f"bold {cor}", justify="center")
     arte_txt = Text(arte, style=f"bold {cor}", justify="center")
@@ -538,7 +592,7 @@ def render_tarefas(dados: dict[str, Any]) -> RenderableType:
     cor_prog = _cor_por_limiar(pct_prog)
 
     # Barra de progresso larga no topo.
-    barra_prog = _barra(pct_prog, LARGURA_BARRA)
+    barra_prog = _barra(pct_prog)
     progresso = Text()
     progresso.append("  ")
     progresso.append_text(barra_prog)
@@ -637,7 +691,7 @@ def render_noticias(dados: dict[str, Any]) -> RenderableType:
     # Cabeçalho com Rule.
     grupo.append(Rule(
         title=f"[bold {NEON_CYAN}]📰  {titulo_feed}{fonte_str}[/bold {NEON_CYAN}]",
-        style=DIM,
+        style=f"bold {NEON_CYAN}",
     ))
     grupo.append(Text())
 
@@ -745,7 +799,7 @@ def render_jogos_futebol(dados: dict[str, Any]) -> RenderableType:
 
     headline = Rule(
         title=f"[bold {NEON_YELLOW}]⚽  {titulo_rodada}{data_str}[/bold {NEON_YELLOW}]",
-        style=DIM,
+        style=f"bold {NEON_YELLOW}",
     )
     grupo.append(headline)
 
@@ -760,9 +814,10 @@ def render_jogos_futebol(dados: dict[str, Any]) -> RenderableType:
             estadio = jogo.get("estadio", "")
             destaque = jogo.get("destaque", "")
 
-            # Placar em pyfiglet (fonte "big") se disponível.
+            # Placar em pyfiglet — fonte maior "banner" em telas largas.
             if pc is not None and pf is not None:
-                score_arte = _figlet(f"{pc}  x  {pf}", font="big")
+                font_score = "banner" if _PANEL_WIDTH > 100 else "big"
+                score_arte = _figlet(f"{pc}  x  {pf}", font=font_score)
                 score_txt = Text(score_arte, style=f"bold {NEON_YELLOW}", justify="center")
             else:
                 score_txt = Text("AO VIVO", style=f"bold {NEON_RED}", justify="center")

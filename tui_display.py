@@ -40,7 +40,7 @@ from textual.containers import Horizontal, ScrollableContainer
 from textual.reactive import reactive
 from textual.widgets import Footer, RichLog, Static
 
-from renderers import RENDERERS, TITULOS_SKILL, render_boas_vindas
+from renderers import RENDERERS, TITULOS_SKILL, render_boas_vindas, set_panel_width
 
 # --------------------------------------------------------------------------- #
 # Configuração
@@ -118,7 +118,7 @@ class HermesDashboard(App):
     }
 
     #main-panel {
-        width: 70%;
+        width: 75%;
         height: 100%;
         margin: 0 1 0 0;
         padding: 1 2;
@@ -134,7 +134,7 @@ class HermesDashboard(App):
     }
 
     #sidebar {
-        width: 30%;
+        width: 25%;
         height: 100%;
         padding: 1 1;
         background: #0d1117;
@@ -168,6 +168,7 @@ class HermesDashboard(App):
 
     def on_mount(self) -> None:
         """Inicia o servidor TCP e exibe a tela de boas-vindas."""
+        self._try_configure_display()
         self._welcome: RenderableType = render_boas_vindas(
             {"host": HOST, "porta": PORT}
         )
@@ -176,6 +177,14 @@ class HermesDashboard(App):
         self.run_worker(
             self._serve(), name="tcp-server", group="net", exclusive=True
         )
+
+    def on_resize(self, event: object) -> None:
+        """Atualiza a largura do painel nos renderers ao redimensionar."""
+        try:
+            panel = self.query_one("#main-panel", ScrollableContainer)
+            set_panel_width(panel.content_size.width)
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------ #
     # Servidor TCP (asyncio)
@@ -298,8 +307,28 @@ class HermesDashboard(App):
         conteudo = payload.get("conteudo", "")
         return Markdown(str(conteudo))
 
+    def _try_configure_display(self) -> None:
+        """Tenta configurar fonte de console maior para Full HD. Falha silenciosamente."""
+        import subprocess
+        fonts = ["ter-v32b", "ter-v28b", "ter-v24b", "LatGrkCyr-12x22"]
+        for font in fonts:
+            try:
+                r = subprocess.run(["setfont", font], capture_output=True, timeout=2)
+                if r.returncode == 0:
+                    self._log("INFO", f"Fonte de console: {font}")
+                    return
+            except Exception:
+                return
+
     def _render_skill(self, tipo: str, dados: dict[str, Any]) -> tuple[bool, str]:
         """Invoca o renderizador da skill, exibe o resultado e retorna status."""
+        # Injeta a largura real do painel antes de renderizar.
+        try:
+            panel = self.query_one("#main-panel", ScrollableContainer)
+            set_panel_width(panel.content_size.width)
+        except Exception:
+            pass
+
         renderer = RENDERERS[tipo]
         try:
             renderable = renderer(dados if isinstance(dados, dict) else {})
