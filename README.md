@@ -149,6 +149,73 @@ mcp dev mcp_server.py
 # invoque atualizar_monitor(conteudo_markdown="# Teste", mensagem_log="oi")
 ```
 
+### Solução de Problemas
+
+#### getty@tty1 não sobe no boot
+
+Se o serviço `getty@tty1` não inicializa automaticamente ao ligar a Orange Pi:
+
+```bash
+systemctl is-active getty@tty1   # verifica o status
+```
+
+Se estiver inativo, crie um override com autologin e restart automático:
+
+```bash
+sudo systemctl edit getty@tty1
+```
+
+Adicione ou descomente as linhas (editor abre a seção `[Service]`):
+
+```ini
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin orangepi --noclear %I $TERM
+Restart=always
+RestartSec=3
+```
+
+Depois salve e execute:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl start getty@tty1
+systemctl status getty@tty1   # confirma que está ativo
+```
+
+#### TUI não aparece no monitor
+
+Se a TUI não renderiza ou cai constantemente:
+
+```bash
+systemctl status hermes-tui.service   # status do serviço
+journalctl -u hermes-tui.service -n 50 --no-pager   # últimos 50 logs
+```
+
+Causas comuns:
+- Caminho do `ExecStart` incorreto no `.service` → edite `/etc/systemd/system/hermes-tui.service`.
+- Python ou dependências não instaladas → verifique a virtualenv.
+- Permissões de TTY → confirme que o usuário `orangepi` tem acesso a `/dev/tty1`.
+
+#### Porta 9999 já em uso
+
+Se receber erro `Address already in use` ao iniciar a TUI:
+
+```bash
+ss -tlnp | grep 9999   # identifica qual processo ocupa a porta
+sudo lsof -i :9999     # alternativa (se lsof estiver instalado)
+```
+
+Para usar uma porta diferente, ajuste as variáveis de ambiente no
+`/etc/systemd/system/hermes-tui.service` (campo `Environment`) e no `config.json` do Hermes:
+
+```bash
+sudo systemctl edit hermes-tui.service
+# [Service]
+# Environment=HERMES_TUI_PORT=9998
+sudo systemctl daemon-reload && sudo systemctl restart hermes-tui.service
+```
+
 ### Variáveis de ambiente
 
 | Variável           | Default       | Descrição                  |
@@ -204,3 +271,15 @@ mcp dev mcp_server.py
 
 **Env vars** — `HERMES_TUI_HOST` (default `127.0.0.1`), `HERMES_TUI_PORT` (default
 `9999`). **Keys** — `Q` quit, `C` clear panel.
+
+**Troubleshooting**
+
+- *getty@tty1 won't start on boot* — Create an override: `sudo systemctl edit getty@tty1`, add
+  `[Service]`, `ExecStart=` (clear line), then `ExecStart=-/sbin/agetty --autologin orangepi --noclear %I $TERM`,
+  `Restart=always`, `RestartSec=3`. Reload: `sudo systemctl daemon-reload && systemctl is-active getty@tty1`.
+
+- *TUI not appearing* — Check `systemctl status hermes-tui.service` and logs with
+  `journalctl -u hermes-tui.service -n 50 --no-pager`. Verify Python path and permissions on `/dev/tty1`.
+
+- *Port 9999 in use* — Find owner: `ss -tlnp | grep 9999`. Change port via `HERMES_TUI_PORT=9998` env var in
+  service file and agent config.

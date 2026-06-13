@@ -1,13 +1,20 @@
 {
-  "_comentario": "Exemplo de configuração de servidor MCP para o agente Hermes. Copie o bloco 'hermes-monitor' para dentro do 'mcpServers' do seu config.json real e ajuste o caminho absoluto e o interpretador Python.",
+  "_comment_root": "Exemplo de configuração de servidor MCP para o agente Hermes. Copie o bloco 'hermes-monitor' para dentro do 'mcpServers' do seu config.json real e ajuste os caminhos e a porta.",
   "mcpServers": {
+    "_comment_mcpServers": "Define os servidores MCP que o agente Hermes pode usar. Cada chave é o nome do servidor (ex: 'hermes-monitor').",
     "hermes-monitor": {
+      "_comment_hermes_monitor": "Servidor MCP do Hermes Terminal Dashboard — permite que o agente exiba conteúdo visual no monitor físico via ferramentas 'atualizar_monitor' e 'limpar_monitor'.",
+      "_comment_command": "Interpretador ou comando executável que rodará o servidor MCP. 'python' assume que está no PATH; para usar venv, use o caminho absoluto: '/home/orangepi/matrixui/.venv/bin/python'.",
       "command": "python",
+      "_comment_args": "Argumentos passados ao comando acima. Aqui, o caminho absoluto para mcp_server.py. Deve estar no mesmo diretório do repositório clonado.",
       "args": [
         "/home/orangepi/matrixui/mcp_server.py"
       ],
+      "_comment_env": "Variáveis de ambiente passadas ao processo do servidor MCP.",
       "env": {
+        "_comment_HERMES_TUI_HOST": "Host onde a TUI escuta conexões TCP. Use '127.0.0.1' (loopback/localhost) para comunicação local segura na Orange Pi. Mude para '0.0.0.0' apenas se o servidor MCP rodar em máquina diferente (não recomendado sem autenticação).",
         "HERMES_TUI_HOST": "127.0.0.1",
+        "_comment_HERMES_TUI_PORT": "Porta TCP onde a TUI escuta. Padrão: 9999. Mude se houver conflito com outro serviço (verifique com 'ss -tlnp | grep <porta>').",
         "HERMES_TUI_PORT": "9999"
       }
     }
