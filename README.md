@@ -19,7 +19,7 @@
 ║  [ booting interface ] [ neural display ] [ secure shell ]     ║
 ╚════════════════════════════════════════════════════════════════╝
 
-  Hermes Terminal Dashboard · MatrixUI  v1.6.0
+  Hermes Terminal Dashboard · MatrixUI  v1.7.0
 ```
 
 > Um plugin **MCP (Model Context Protocol)** que dá a um agente de IA (Hermes) a
@@ -92,6 +92,8 @@ ncurses.
 | `exibir_alerta`           | `alerta`         | Banner com texto gigante (pyfiglet)                   |
 | `exibir_qrcode`           | `qrcode`         | QR Code em ASCII                                      |
 | `exibir_tarefas`          | `tarefas`        | Checklist com ✓/☐ e prioridades                       |
+| `exibir_noticias`         | `noticias`       | Lista de notícias com título, resumo e categorias     |
+| `exibir_jogos_futebol`    | `jogos_futebol`  | Partidas com placar, status ao vivo e destaques       |
 | `atualizar_monitor`       | `markdown`       | Markdown livre (texto genérico)                       |
 | `personalizar_boas_vindas`| `boas_vindas`    | Tela inicial: logo + cor + mensagem customizados       |
 | `resetar_boas_vindas`     | —                | Restaura a tela de boas-vindas padrão com logo         |
@@ -119,6 +121,12 @@ printf '{"tipo":"qrcode","dados":{"conteudo":"https://exemplo.com","legenda":"Ap
 
 # Tarefas
 printf '{"tipo":"tarefas","dados":{"titulo":"Hoje","itens":[{"texto":"Comprar pão","feito":false,"prioridade":"alta"},{"texto":"Pagar conta","feito":true}]}}\n' | nc 127.0.0.1 9999
+
+# Notícias
+printf '{"tipo":"noticias","dados":{"titulo":"Últimas Notícias","fonte":"G1","itens":[{"titulo":"Selic mantida em 13,75%","resumo":"O Copom decidiu manter a taxa de juros.","categoria":"Economia","tempo":"há 30 min"},{"titulo":"Seleção convoca 26 jogadores","resumo":"Lista com surpresas no ataque.","categoria":"Esportes"}]}}\n' | nc 127.0.0.1 9999
+
+# Jogos de futebol
+printf '{"tipo":"jogos_futebol","dados":{"titulo":"Rodada 15 — Brasileirão","data":"13/06/2026","jogos":[{"time_casa":"Flamengo","time_fora":"Palmeiras","placar_casa":2,"placar_fora":1,"status":"encerrado","estadio":"Maracanã","destaque":"Gol de Gabriel 78'"'"'"},{"time_casa":"Corinthians","time_fora":"São Paulo","placar_casa":0,"placar_fora":0,"status":"ao_vivo"},{"time_casa":"Atlético-MG","time_fora":"Cruzeiro","status":"agendado","horario":"16:00"}]}}\n' | nc 127.0.0.1 9999
 ```
 
 ### Instalação
@@ -470,7 +478,62 @@ Mostra status (`✓`/`☐`) e prioridade colorida.
 }
 ```
 
-#### 8. Tela de boas-vindas customizável
+#### 8. Notícias
+**Quando usar:** exibir manchetes de qualquer fonte (o agente busca os dados via API
+ou ferramenta de busca). Lista numerada com título em destaque, resumo, categoria e
+hora da publicação.
+
+```python
+{
+  "tipo": "noticias",
+  "dados": {
+    "titulo": "Últimas Notícias",
+    "fonte": "G1",
+    "itens": [
+      {"titulo": "Selic mantida em 13,75%",
+       "resumo": "O Copom decidiu manter a taxa básica de juros.",
+       "categoria": "Economia", "tempo": "há 30 min"},
+      {"titulo": "Seleção convoca 26 jogadores",
+       "resumo": "Lista com surpresas no ataque e ausências por lesão.",
+       "categoria": "Esportes", "tempo": "há 2 horas"},
+      {"titulo": "Tempestade causa apagão no Nordeste",
+       "resumo": "Ventos de até 90 km/h derrubaram torres de transmissão.",
+       "categoria": "Brasil"}
+    ]
+  }
+}
+```
+
+#### 9. Jogos de futebol
+**Quando usar:** mostrar a rodada atual, resultados ou agenda de qualquer campeonato.
+Status colorido (`🔴 AO VIVO`, `✅ FIM`, `🕐 HH:MM`), placar em destaque e linha
+de evento por partida.
+
+```python
+{
+  "tipo": "jogos_futebol",
+  "dados": {
+    "titulo": "Rodada 15 — Brasileirão Série A",
+    "data": "13/06/2026",
+    "jogos": [
+      {"time_casa": "Flamengo", "time_fora": "Palmeiras",
+       "placar_casa": 2, "placar_fora": 1,
+       "status": "encerrado", "estadio": "Maracanã",
+       "destaque": "Gol de Gabriel Barbosa aos 78'"},
+      {"time_casa": "Corinthians", "time_fora": "São Paulo",
+       "placar_casa": 0, "placar_fora": 0,
+       "status": "ao_vivo", "estadio": "Neo Química Arena",
+       "destaque": "45+2' — 2º Tempo"},
+      {"time_casa": "Atlético-MG", "time_fora": "Cruzeiro",
+       "status": "agendado", "horario": "16:00", "estadio": "Arena MRV"},
+      {"time_casa": "Botafogo", "time_fora": "Vasco",
+       "status": "agendado", "horario": "18:30"}
+    ]
+  }
+}
+```
+
+#### 10. Tela de boas-vindas customizável
 
 A tela inicial (exibida no boot e ao pressionar `C`) mostra o logo do projeto com
 informações de sistema. O agente pode personalizá-la e a customização persiste até
@@ -516,8 +579,10 @@ Markdown on a physical monitor attached to a headless Linux device.
 - `mcp_server.py` — an MCP server (official `mcp` SDK, stdio transport) exposing
   `atualizar_monitor`/`limpar_monitor` plus specialized **skills**: `exibir_previsao_tempo`
   (weather cards), `exibir_tabela` (rich table), `exibir_grafico` (bar chart),
-  `exibir_metricas` (gauges), `exibir_alerta` (big-text banner), `exibir_qrcode`, and
-  `exibir_tarefas` (checklist). It sends a newline-delimited JSON payload to the TUI.
+  `exibir_metricas` (gauges), `exibir_alerta` (big-text banner), `exibir_qrcode`,
+  `exibir_tarefas` (checklist), `exibir_noticias` (news feed with title + summary),
+  and `exibir_jogos_futebol` (football matches with score and live status).
+  It sends a newline-delimited JSON payload to the TUI.
 - `renderers.py` — registry mapping each skill `tipo` to a Rich renderable (ncurses-style).
 
 **Install**
