@@ -51,6 +51,13 @@ PORT: int = int(os.getenv("HERMES_TUI_PORT", "9999"))
 # Tamanho máximo de uma única linha NDJSON aceita (proteção contra payloads enormes).
 MAX_LINE_BYTES: int = 4 * 1024 * 1024  # 4 MiB
 
+# Métodos HTTP: conexões não-NDJSON são descartadas silenciosamente.
+_HTTP_METHODS = frozenset({"GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "PATCH", "CONNECT"})
+
+
+def _is_http_request(line: str) -> bool:
+    return line.split(" ", 1)[0].upper() in _HTTP_METHODS
+
 
 class HermesHeader(Static):
     """Header customizado com título, relógio em tempo real e status de conexão."""
@@ -191,32 +198,42 @@ class HermesDashboard(App):
     async def _handle_client(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
-        """Trata uma conexão: lê linhas NDJSON e aplica cada mensagem."""
-        peer = writer.get_extra_info("peername")
+        """Trata uma conexão: lê linhas NDJSON, processa e responde inline."""
+        logged_error = False  # limita ruído: 1 log de erro por conexão
         try:
             while not reader.at_eof():
                 try:
                     raw = await reader.readline()
                 except (asyncio.LimitOverrunError, ValueError):
-                    self._log("ERRO", "Linha excede o limite permitido; descartada.")
                     break
                 if not raw:
                     break
                 if len(raw) > MAX_LINE_BYTES:
-                    self._log("ERRO", "Payload muito grande; ignorado.")
                     continue
                 line = raw.decode("utf-8", errors="replace").strip()
                 if not line:
                     continue
-                self._processar_mensagem(line)
-            # Confirmação simples para o cliente (mcp_server).
-            try:
-                writer.write(b'{"status":"ok"}\n')
-                await writer.drain()
-            except (ConnectionError, OSError):
-                pass
-        except (ConnectionError, OSError) as exc:
-            self._log("ERRO", f"Conexão {peer} encerrada: {exc}")
+                # Conexões HTTP (ex.: browser, health-check) são descartadas silenciosamente.
+                if _is_http_request(line):
+                    break
+                ok, msg = self._processar_mensagem(line)
+                if ok:
+                    resp = b'{"status":"ok"}\n'
+                else:
+                    resp = (
+                        json.dumps({"status": "error", "message": msg}, ensure_ascii=False)
+                        + "\n"
+                    ).encode("utf-8")
+                    if not logged_error:
+                        self._log("ERRO", msg)
+                        logged_error = True
+                try:
+                    writer.write(resp)
+                    await writer.drain()
+                except (ConnectionError, OSError):
+                    break
+        except (ConnectionError, OSError):
+            pass
         finally:
             try:
                 writer.close()
@@ -224,21 +241,20 @@ class HermesDashboard(App):
             except (ConnectionError, OSError):
                 pass
 
-    def _processar_mensagem(self, line: str) -> None:
-        """Faz o parse de uma linha NDJSON e atualiza a interface."""
+    def _processar_mensagem(self, line: str) -> tuple[bool, str]:
+        """Faz o parse de uma linha NDJSON, atualiza a interface e retorna status."""
         try:
             payload: dict[str, Any] = json.loads(line)
         except json.JSONDecodeError as exc:
-            self._log("ERRO", f"JSON inválido recebido: {exc}")
-            return
+            return False, f"JSON inválido: {exc}"
 
         if not isinstance(payload, dict):
-            self._log("ERRO", "Payload não é um objeto JSON; ignorado.")
-            return
+            return False, "Payload não é um objeto JSON"
 
         acao = str(payload.get("acao", "update")).lower()
         tipo = str(payload.get("tipo", "markdown")).lower()
         log_msg = payload.get("log")
+        resultado: tuple[bool, str] = (True, "ok")
 
         if acao == "clear":
             self._set_panel_title("PAINEL PRINCIPAL")
@@ -255,11 +271,11 @@ class HermesDashboard(App):
             self._set_content(self._welcome)
             self._log("INFO", "Tela de boas-vindas restaurada para o padrão.")
         elif tipo != "markdown" and tipo in RENDERERS:
-            self._render_skill(tipo, payload.get("dados", {}))
+            resultado = self._render_skill(tipo, payload.get("dados", {}))
         else:
             conteudo = payload.get("conteudo")
             if tipo != "markdown" and tipo not in RENDERERS:
-                self._log("ERRO", f"Tipo de renderização desconhecido: '{tipo}'")
+                resultado = False, f"Tipo de renderização desconhecido: '{tipo}'"
             elif conteudo is not None:
                 self._set_panel_title("PAINEL PRINCIPAL")
                 self._set_markdown(str(conteudo))
@@ -268,6 +284,7 @@ class HermesDashboard(App):
             self._log("AGENTE", str(log_msg))
 
         self._mark_updated()
+        return resultado
 
     def _render_welcome_payload(self, tipo: str, payload: dict[str, Any]) -> RenderableType:
         """Constrói o renderable da tela de boas-vindas a partir de um payload set_welcome."""
@@ -281,21 +298,21 @@ class HermesDashboard(App):
         conteudo = payload.get("conteudo", "")
         return Markdown(str(conteudo))
 
-    def _render_skill(self, tipo: str, dados: dict[str, Any]) -> None:
-        """Invoca o renderizador da skill e exibe o resultado no painel."""
+    def _render_skill(self, tipo: str, dados: dict[str, Any]) -> tuple[bool, str]:
+        """Invoca o renderizador da skill, exibe o resultado e retorna status."""
         renderer = RENDERERS[tipo]
         try:
             renderable = renderer(dados if isinstance(dados, dict) else {})
         except Exception as exc:  # noqa: BLE001 - dados vindos da rede
-            self._log("ERRO", f"Skill '{tipo}' falhou: {exc}")
             self._set_panel_title("ERRO")
             self._set_markdown(
                 f"# ⚠️ Erro ao renderizar `{tipo}`\n\n```\n{exc}\n```"
             )
-            return
+            return False, f"Skill '{tipo}' falhou: {exc}"
         self._set_panel_title(TITULOS_SKILL.get(tipo, tipo.upper()))
         self._set_content(renderable)
         self._log("AGENTE", f"Skill renderizada: {tipo}")
+        return True, "ok"
 
     # ------------------------------------------------------------------ #
     # Helpers de atualização da UI

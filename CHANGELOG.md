@@ -5,6 +5,35 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/), e este projeto
 adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.5.0] — 2026-06-13
+
+### Fixed
+
+- **Deadlock no protocolo TCP eliminado:** a TUI agora envia a resposta
+  (`{"status":"ok"}` ou `{"status":"error","message":"..."}`) **imediatamente
+  após processar cada mensagem** (dentro do `while`, não após EOF). O mcp_server
+  não precisa mais fechar a conexão antes de ler a confirmação.
+
+- **Propagação de erros TUI → MCP:** `_processar_mensagem` e `_render_skill`
+  agora retornam `tuple[bool, str]`. Quando a TUI reporta erro, `_enviar_payload`
+  interpreta a resposta e retorna a mensagem de erro real para o agente em vez do
+  genérico `"✅ Monitor atualizado com sucesso."`.
+
+- **Supressão de ruído de conexões HTTP:** se um browser ou ferramenta de
+  health-check conectar na porta 9999 (ex.: `mcp dev` abrindo o inspector),
+  a primeira linha com método HTTP (`GET`, `POST`, `OPTIONS`, etc.) causa
+  fechamento silencioso da conexão — sem nenhuma entrada no log lateral.
+
+- **Limite de 1 log de erro por conexão:** qualquer outro dado não-JSON limita
+  o spam a 1 entrada de erro por conexão TCP (não por linha).
+
+### Changed
+
+- **`logo.py`:** adicionado "MATRIXUI" abaixo de "HERMES" em estilo Matrix —
+  verde clássico `#00ff00`, fonte pyfiglet `digital` com fallback em box-drawing
+  (╔╦╗╔═╗...). Versão atualizada para `1.5.0`. Chuva digital estilo Matrix
+  adicionada como decoração.
+
 ## [1.4.0] — 2026-06-13
 
 ### Added

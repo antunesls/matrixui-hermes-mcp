@@ -64,14 +64,18 @@ async def _enviar_payload(payload: dict[str, Any]) -> str:
             f"Orange Pi."
         )
 
+    resultado = "✅ Monitor atualizado com sucesso."
     try:
         writer.write(linha)
         await asyncio.wait_for(writer.drain(), timeout=CONNECT_TIMEOUT)
-        # Tenta ler a confirmação da TUI (não obrigatório).
+        # Lê a resposta inline da TUI (enviada imediatamente após processar).
         try:
-            await asyncio.wait_for(reader.readline(), timeout=CONNECT_TIMEOUT)
-        except asyncio.TimeoutError:
-            pass
+            raw = await asyncio.wait_for(reader.readline(), timeout=CONNECT_TIMEOUT)
+            resp = json.loads(raw.decode("utf-8"))
+            if resp.get("status") == "error":
+                resultado = f"⚠️ Monitor reportou erro: {resp.get('message', 'erro desconhecido')}"
+        except (asyncio.TimeoutError, json.JSONDecodeError, ValueError):
+            pass  # sem resposta ou inválida → assume sucesso (retrocompat)
     except (ConnectionError, OSError, asyncio.TimeoutError) as exc:
         return f"⚠️ Erro ao enviar dados ao monitor: {exc}"
     finally:
@@ -81,7 +85,7 @@ async def _enviar_payload(payload: dict[str, Any]) -> str:
         except (ConnectionError, OSError):
             pass
 
-    return "✅ Monitor atualizado com sucesso."
+    return resultado
 
 
 async def _enviar_skill(

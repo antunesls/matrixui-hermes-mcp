@@ -7,7 +7,11 @@
 |  _  | |___|  _ <| |  | | |___ ___) |
 |_| |_|_____|_| \_\_|  |_|_____|____/
 
-  A G E N T   O S   ·   T E R M I N A L   D A S H B O A R D   v1.4.0
+╔╦╗╔═╗╔╦╗╦═╗╦╔═╗ ╦ ╦╦
+║║║╠═╣ ║ ╠╦╝║╚═╗ ║ ║║
+╩ ╩╩ ╩ ╩ ╩╚═╩╚═╝ ╚═╝╩
+
+  A G E N T   O S   ·   T E R M I N A L   D A S H B O A R D   v1.5.0
 ```
 
 > Um plugin **MCP (Model Context Protocol)** que dá a um agente de IA (Hermes) a
