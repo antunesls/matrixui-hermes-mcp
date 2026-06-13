@@ -5,6 +5,23 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/), e este projeto
 adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.6.0] — 2026-06-13
+
+### Changed
+
+- **Logo substituído por arte customizada:** `logo.py` agora usa um logo ASCII
+  manual estilo Matrix com borda própria (`╔═╗/╚═╝`), chuva binária, "MATRIX"
+  em blocos ██, "UI" abaixo, e labels de status (`ACCESS_GRANTED`,
+  `STATUS::ACTIVE`, `MATRIX_UI::READY`) e rodapé
+  `[ booting interface ] [ neural display ] [ secure shell ]`.
+- **Coloração inteligente por linha:** blocos ██ fixos em verde Matrix
+  `#00ff00`; borda, status e decorações no cor tema configurável (default
+  `#00ff9c`); chuva binária e rodapé em `dim`.
+- **Removido pyfiglet do logo:** o logo é agora estático — sem geração
+  dinâmica. `pyfiglet` permanece em uso apenas em `render_alerta` (`renderers.py`).
+- **`VERSION` atualizado para `1.6.0`** em `logo.py`.
+- **README:** header atualizado com o novo logo.
+
 ## [1.5.0] — 2026-06-13
 
 ### Fixed

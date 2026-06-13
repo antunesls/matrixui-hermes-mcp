@@ -19,7 +19,7 @@
 ║  [ booting interface ] [ neural display ] [ secure shell ]     ║
 ╚════════════════════════════════════════════════════════════════╝
 
-  A G E N T   O S   ·   T E R M I N A L   D A S H B O A R D   v1.5.0
+  Hermes Terminal Dashboard · MatrixUI  v1.6.0
 ```
 
 > Um plugin **MCP (Model Context Protocol)** que dá a um agente de IA (Hermes) a
