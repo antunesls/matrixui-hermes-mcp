@@ -452,6 +452,158 @@ def render_tarefas(dados: dict[str, Any]) -> RenderableType:
     )
 
 
+def render_noticias(dados: dict[str, Any]) -> RenderableType:
+    """Lista de notícias com título e resumo.
+
+    Schema de `dados`:
+        {
+          "titulo": "Últimas Notícias",
+          "fonte": "BBC Brasil",        # opcional
+          "itens": [
+            {
+              "titulo": "Manchete da notícia",
+              "resumo": "Breve resumo de 1-2 linhas.",
+              "categoria": "Política",  # opcional
+              "tempo": "há 2 horas"     # opcional
+            }, ...
+          ]
+        }
+    """
+    itens = dados.get("itens", [])
+    if not isinstance(itens, list) or not itens:
+        raise ValueError("noticias: 'itens' deve ser uma lista não vazia")
+
+    titulo_feed = str(dados.get("titulo", "Notícias"))
+    fonte = dados.get("fonte")
+
+    cabecalho = Text()
+    cabecalho.append(f"📰  {titulo_feed}", style=f"bold {NEON_CYAN}")
+    if fonte:
+        cabecalho.append(f"  ·  {fonte}", style=DIM)
+
+    sep = Text("─" * 60, style=DIM)
+    grupo: list[RenderableType] = [cabecalho, sep]
+
+    for i, item in enumerate(itens, start=1):
+        linha = Text()
+        linha.append(f"[{i}] ", style=f"bold {NEON_YELLOW}")
+        linha.append(str(item.get("titulo", "—")), style=f"bold {NEON_GREEN}")
+
+        resumo = str(item.get("resumo", "")).strip()
+        if resumo:
+            linha.append(f"\n    {resumo}")
+
+        tags = Text()
+        categoria = item.get("categoria")
+        tempo = item.get("tempo")
+        if categoria or tempo:
+            tags.append("\n    ")
+            if categoria:
+                tags.append(f" {categoria} ", style=f"bold {DIM}")
+            if tempo:
+                tags.append(f"  {tempo}", style=DIM)
+            linha.append_text(tags)
+
+        grupo.append(linha)
+        if i < len(itens):
+            grupo.append(Text("  ·", style=DIM))
+
+    return Panel(
+        Group(*grupo),
+        title=f"📰  {titulo_feed.upper()}",
+        border_style=NEON_CYAN,
+        padding=(1, 2),
+    )
+
+
+def render_jogos_futebol(dados: dict[str, Any]) -> RenderableType:
+    """Painel de jogos de futebol com placar e status.
+
+    Schema de `dados`:
+        {
+          "titulo": "Rodada 15 — Brasileirão",
+          "data": "13/06/2026",          # opcional
+          "jogos": [
+            {
+              "time_casa": "Flamengo",
+              "time_fora": "Palmeiras",
+              "placar_casa": 2,           # opcional (omitir = jogo não iniciado)
+              "placar_fora": 1,           # opcional
+              "status": "encerrado|ao_vivo|agendado",
+              "horario": "16:00",         # opcional, usado em agendado
+              "estadio": "Maracanã",      # opcional
+              "destaque": "Gol 45'"       # opcional, destaque da partida
+            }, ...
+          ]
+        }
+    """
+    jogos = dados.get("jogos", [])
+    if not isinstance(jogos, list) or not jogos:
+        raise ValueError("jogos_futebol: 'jogos' deve ser uma lista não vazia")
+
+    titulo_rodada = str(dados.get("titulo", "Jogos de Futebol"))
+    data = dados.get("data")
+
+    cabecalho = Text()
+    cabecalho.append(f"⚽  {titulo_rodada}", style=f"bold {NEON_YELLOW}")
+    if data:
+        cabecalho.append(f"  ·  {data}", style=DIM)
+
+    sep = Text("─" * 60, style=DIM)
+
+    tabela = Table.grid(padding=(0, 1))
+    tabela.add_column(width=12, justify="left")   # status/horário
+    tabela.add_column(justify="right", style="bold")   # time casa
+    tabela.add_column(width=7, justify="center")  # placar ou "vs"
+    tabela.add_column(justify="left", style="bold")    # time fora
+    tabela.add_column(justify="left", style=DIM)  # estadio
+
+    destaques: list[Text] = []
+
+    for jogo in jogos:
+        status = str(jogo.get("status", "agendado")).lower()
+        time_casa = str(jogo.get("time_casa", "—"))
+        time_fora = str(jogo.get("time_fora", "—"))
+        estadio = jogo.get("estadio")
+        horario = jogo.get("horario", "")
+        destaque = jogo.get("destaque")
+
+        placar_casa = jogo.get("placar_casa")
+        placar_fora = jogo.get("placar_fora")
+
+        if status == "ao_vivo":
+            status_txt = Text("🔴 AO VIVO", style=f"bold {NEON_RED}")
+        elif status == "encerrado":
+            status_txt = Text("✅ FIM", style=f"bold {NEON_GREEN}")
+        else:
+            hora_str = f"🕐 {horario}" if horario else "🕐 —"
+            status_txt = Text(hora_str, style=DIM)
+
+        if placar_casa is not None and placar_fora is not None:
+            placar_txt = Text(f"{placar_casa} × {placar_fora}", style=f"bold {NEON_YELLOW}", justify="center")
+        else:
+            placar_txt = Text("vs", style=DIM, justify="center")
+
+        estadio_txt = f"[{estadio}]" if estadio else ""
+
+        tabela.add_row(status_txt, time_casa, placar_txt, time_fora, estadio_txt)
+
+        if destaque:
+            dest = Text(f"    ↳ {destaque}", style=DIM)
+            destaques.append(dest)
+        else:
+            destaques.append(Text())
+
+    grupo_jogos: list[RenderableType] = [d for d in destaques if str(d)]
+
+    return Panel(
+        Group(cabecalho, sep, tabela, *grupo_jogos),
+        title=f"⚽  {titulo_rodada.upper()}",
+        border_style=NEON_YELLOW,
+        padding=(1, 2),
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Registry
 # --------------------------------------------------------------------------- #
@@ -464,6 +616,8 @@ RENDERERS: dict[str, Callable[[dict[str, Any]], RenderableType]] = {
     "qrcode": render_qrcode,
     "tarefas": render_tarefas,
     "boas_vindas": render_boas_vindas,
+    "noticias": render_noticias,
+    "jogos_futebol": render_jogos_futebol,
 }
 
 # Títulos amigáveis para o border_title do painel principal.
@@ -476,4 +630,6 @@ TITULOS_SKILL: dict[str, str] = {
     "qrcode": "🔳 QR CODE",
     "tarefas": "✅ TAREFAS",
     "boas_vindas": "⌂  BOAS-VINDAS",
+    "noticias": "📰 NOTÍCIAS",
+    "jogos_futebol": "⚽ JOGOS DE FUTEBOL",
 }

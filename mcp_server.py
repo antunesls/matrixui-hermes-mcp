@@ -117,6 +117,8 @@ async def atualizar_monitor(
       - `exibir_alerta` — banner de alerta com texto gigante
       - `exibir_qrcode` — QR code
       - `exibir_tarefas` — checklist / lista de tarefas
+      - `exibir_noticias` — lista de notícias com título e resumo
+      - `exibir_jogos_futebol` — resultados e agenda de jogos de futebol
 
     O conteúdo é renderizado num painel que suporta **Markdown completo**:
     títulos, listas, tabelas, blocos de código, negrito, itálico, citações e links.
@@ -339,6 +341,81 @@ async def exibir_tarefas(
     if titulo:
         dados["titulo"] = titulo
     return await _enviar_skill("tarefas", dados, mensagem_log)
+
+
+@mcp.tool()
+async def exibir_noticias(
+    itens: list[dict],
+    titulo: str | None = None,
+    fonte: str | None = None,
+    mensagem_log: str | None = None,
+) -> str:
+    """Exibe uma lista de notícias no monitor com título e resumo de cada item.
+
+    USE quando o usuário pedir para **mostrar notícias, manchetes ou resumo de
+    notícias** na tela física.
+
+    Args:
+        itens: Lista de notícias. Cada item é um dict com:
+            - "titulo" (str): manchete/título da notícia.
+            - "resumo" (str): breve resumo de 1-2 linhas.
+            - "categoria" (str, opcional): ex.: "Política", "Esportes", "Tech".
+            - "tempo" (str, opcional): ex.: "há 2 horas", "13/06 09:30".
+            Ex.: [{"titulo": "Bolsa sobe 2%", "resumo": "Mercado reagiu...",
+                   "categoria": "Economia", "tempo": "há 1 hora"}].
+        titulo: (Opcional) Título do feed. Ex.: "Últimas Notícias", "Tech News".
+        fonte: (Opcional) Nome da fonte. Ex.: "G1", "BBC Brasil".
+        mensagem_log: (Opcional) Nota curta para o log lateral.
+
+    Returns:
+        String de status (sucesso ou erro).
+    """
+    dados: dict[str, Any] = {"itens": itens}
+    if titulo:
+        dados["titulo"] = titulo
+    if fonte:
+        dados["fonte"] = fonte
+    return await _enviar_skill("noticias", dados, mensagem_log)
+
+
+@mcp.tool()
+async def exibir_jogos_futebol(
+    jogos: list[dict],
+    titulo: str | None = None,
+    data: str | None = None,
+    mensagem_log: str | None = None,
+) -> str:
+    """Exibe resultados e agenda de jogos de futebol no monitor de forma organizada.
+
+    USE quando o usuário pedir para **mostrar jogos, resultados, placar ou
+    agenda de futebol** na tela física.
+
+    Args:
+        jogos: Lista de jogos. Cada item é um dict com:
+            - "time_casa" (str): nome do time mandante.
+            - "time_fora" (str): nome do time visitante.
+            - "status" (str): "agendado", "ao_vivo" ou "encerrado".
+            - "placar_casa" (número, opcional): gols do time da casa (omitir se não iniciado).
+            - "placar_fora" (número, opcional): gols do time visitante.
+            - "horario" (str, opcional): horário do jogo. Ex.: "16:00".
+            - "estadio" (str, opcional): nome do estádio.
+            - "destaque" (str, opcional): evento importante. Ex.: "Gol de Gabigol 45'".
+            Ex.: [{"time_casa": "Flamengo", "time_fora": "Palmeiras",
+                   "placar_casa": 2, "placar_fora": 1, "status": "encerrado",
+                   "estadio": "Maracanã", "destaque": "Gol de Gabriel 78'"}].
+        titulo: (Opcional) Título do painel. Ex.: "Rodada 15 — Brasileirão".
+        data: (Opcional) Data dos jogos. Ex.: "13/06/2026".
+        mensagem_log: (Opcional) Nota curta para o log lateral.
+
+    Returns:
+        String de status (sucesso ou erro).
+    """
+    dados: dict[str, Any] = {"jogos": jogos}
+    if titulo:
+        dados["titulo"] = titulo
+    if data:
+        dados["data"] = data
+    return await _enviar_skill("jogos_futebol", dados, mensagem_log)
 
 
 @mcp.tool()

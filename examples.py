@@ -269,6 +269,89 @@ Para mais detalhes, acesse o [painel administrativo](https://admin.exemplo.com).
 }
 
 # =========================================================================
+# 9. NOTÍCIAS
+# =========================================================================
+NOTICIAS_BRASIL = {
+    "tipo": "noticias",
+    "dados": {
+        "titulo": "Últimas Notícias",
+        "fonte": "G1",
+        "itens": [
+            {
+                "titulo": "Selic mantida em 13,75% pelo Copom",
+                "resumo": "O Comitê de Política Monetária decidiu manter a taxa básica de juros, sinalizando cautela diante da inflação persistente.",
+                "categoria": "Economia",
+                "tempo": "há 30 min",
+            },
+            {
+                "titulo": "Seleção brasileira convoca 26 jogadores para Copa",
+                "resumo": "O técnico anunciou a lista definitiva com surpresas no ataque e a ausência de jogadores lesionados.",
+                "categoria": "Esportes",
+                "tempo": "há 2 horas",
+            },
+            {
+                "titulo": "Tempestade causa apagão em três estados do Nordeste",
+                "resumo": "Ventos de até 90 km/h derrubaram torres de transmissão. Equipes de emergência trabalham para restabelecer energia.",
+                "categoria": "Brasil",
+                "tempo": "há 4 horas",
+            },
+            {
+                "titulo": "Nova IA da TOTVS automatiza rotinas fiscais no Protheus",
+                "resumo": "A solução integra machine learning para classificação de documentos e reduz tempo de fechamento fiscal em 40%.",
+                "categoria": "Tecnologia",
+                "tempo": "13/06 09:00",
+            },
+        ],
+    },
+    "log": "Feed de notícias atualizado",
+}
+
+# =========================================================================
+# 10. JOGOS DE FUTEBOL
+# =========================================================================
+JOGOS_BRASILEIRAO = {
+    "tipo": "jogos_futebol",
+    "dados": {
+        "titulo": "Rodada 15 — Brasileirão Série A",
+        "data": "13/06/2026",
+        "jogos": [
+            {
+                "time_casa": "Flamengo",
+                "time_fora": "Palmeiras",
+                "placar_casa": 2,
+                "placar_fora": 1,
+                "status": "encerrado",
+                "estadio": "Maracanã",
+                "destaque": "Gol de Gabriel Barbosa aos 78'",
+            },
+            {
+                "time_casa": "Corinthians",
+                "time_fora": "São Paulo",
+                "placar_casa": 0,
+                "placar_fora": 0,
+                "status": "ao_vivo",
+                "estadio": "Neo Química Arena",
+                "destaque": "45+2' — 2º Tempo",
+            },
+            {
+                "time_casa": "Atlético-MG",
+                "time_fora": "Cruzeiro",
+                "status": "agendado",
+                "horario": "16:00",
+                "estadio": "Arena MRV",
+            },
+            {
+                "time_casa": "Botafogo",
+                "time_fora": "Vasco",
+                "status": "agendado",
+                "horario": "18:30",
+            },
+        ],
+    },
+    "log": "Jogos do Brasileirão — 13/06/2026",
+}
+
+# =========================================================================
 # Utilitário: exibir todos como NDJSON
 # =========================================================================
 if __name__ == "__main__":
@@ -287,6 +370,8 @@ if __name__ == "__main__":
         "tarefas_diarias": TAREFAS_DIARIAS,
         "tarefas_deploy": TAREFAS_DEPLOY,
         "markdown_generico": MARKDOWN_GENERICO,
+        "noticias_brasil": NOTICIAS_BRASIL,
+        "jogos_brasileirao": JOGOS_BRASILEIRAO,
     }
 
     print("# Exemplos de payloads NDJSON para testar com `nc`\n")
