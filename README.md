@@ -317,6 +317,137 @@ sudo systemctl daemon-reload && sudo systemctl restart hermes-tui.service
 | `Q`   | Sair            |
 | `C`   | Limpar o painel |
 
+### Exemplos de uso
+
+Cada skill foi desenhada para um caso de uso específico. Veja cenários práticos:
+
+#### 1. Previsão do tempo
+**Quando usar:** o usuário pede "mostre a previsão do tempo" ou você quer exibir
+dados meteorológicos visualmente. A renderização em cards com arte ASCII é muito
+mais legível que uma tabela.
+
+```python
+# O agente obtém dados de clima (via API ou integração) e envia:
+{
+  "tipo": "previsao_tempo",
+  "dados": {
+    "local": "São Paulo, SP",
+    "dias": [
+      {"dia": "Hoje", "condicao": "chuva", "temp_max": 24, "temp_min": 17,
+       "descricao": "Pancadas", "umidade": 80, "vento": "15 km/h"},
+      {"dia": "Amanhã", "condicao": "sol", "temp_max": 28, "temp_min": 20,
+       "descricao": "Ensolarado"}
+    ]
+  }
+}
+```
+
+#### 2. Tabela
+**Quando usar:** dados estruturados em linhas/colunas (vendas, relatórios, inventário,
+etc.). Superior à renderização Markdown porque `rich.Table` alinha perfeitamente e
+colore as bordas.
+
+```python
+{
+  "tipo": "tabela",
+  "dados": {
+    "titulo": "Vendas do mês",
+    "colunas": ["Produto", "Qtd", "Preço", "Total"],
+    "linhas": [
+      ["Café", "120", "R$ 15", "R$ 1.800"],
+      ["Pão", "450", "R$ 0,75", "R$ 337,50"]
+    ]
+  }
+}
+```
+
+#### 3. Gráfico de barras
+**Quando usar:** série temporal ou comparação de valores (temperatura por dia, vendas
+por mês, retorno de investimento, etc.). `plotext` desenha barras profissionais; se
+falhar, cai para unicode.
+
+```python
+{
+  "tipo": "grafico",
+  "dados": {
+    "titulo": "Temperatura por dia",
+    "unidade": "°C",
+    "series": [
+      {"label": "Seg", "valor": 23},
+      {"label": "Ter", "valor": 27},
+      {"label": "Qua", "valor": 25}
+    ]
+  }
+}
+```
+
+#### 4. Métricas / Gauges
+**Quando usar:** monitorar status em tempo real (CPU, RAM, disco, progresso, KPIs).
+As barras mudam de cor por faixa: verde (<60%), amarelo (<85%), vermelho (>=85%).
+
+```python
+{
+  "tipo": "metricas",
+  "dados": {
+    "titulo": "Status do Servidor",
+    "metricas": [
+      {"label": "CPU", "valor": 42, "unidade": "%"},
+      {"label": "RAM", "valor": 6.8, "max": 8, "unidade": "GB"},
+      {"label": "Disco", "valor": 540, "max": 600, "unidade": "GB"}
+    ]
+  }
+}
+```
+
+#### 5. Alerta / Banner
+**Quando usar:** notificar de algo importante (backup terminado, erro crítico,
+aviso de espaço). Texto gigante chama atenção e a cor varia por severidade.
+
+```python
+{
+  "tipo": "alerta",
+  "dados": {
+    "texto": "BACKUP OK",
+    "nivel": "info",  # ou "aviso", "critico"
+    "subtitulo": "Concluído com sucesso"
+  }
+}
+```
+
+#### 6. QR Code
+**Quando usar:** compartilhar um link (acesso ao painel, doc) ou credencial
+(Wi-Fi, token). O usuário aponta a câmera direto na tela.
+
+```python
+{
+  "tipo": "qrcode",
+  "dados": {
+    "conteudo": "https://dashboard.exemplo.com",
+    "legenda": "Aponte a câmera"
+  }
+}
+```
+
+#### 7. Tarefas / Checklist
+**Quando usar:** lista de afazeres, checklist de deploy, roteiro de procedimento.
+Mostra status (`✓`/`☐`) e prioridade colorida.
+
+```python
+{
+  "tipo": "tarefas",
+  "dados": {
+    "titulo": "Checklist de Deploy",
+    "itens": [
+      {"texto": "Testes OK", "feito": true, "prioridade": "alta"},
+      {"texto": "DB migration", "feito": false, "prioridade": "alta"},
+      {"texto": "Notificar usuários", "feito": false}
+    ]
+  }
+}
+```
+
+**Ver arquivo `examples.py` para payloads prontos de cada skill.**
+
 ---
 
 ## 🇬🇧 English (quick guide)

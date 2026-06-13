@@ -29,7 +29,11 @@ adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 - **Dependências:** `plotext>=5.2`, `pyfiglet>=1.0`, `qrcode>=7.4` (todas pure-python).
 
 - **README:** nova seção "Skills disponíveis" com tabela de ferramentas e exemplos de
-  payload para teste via `nc`; seção "Protocolo" atualizada com `tipo`/`dados`.
+  payload para teste via `nc`; seção "Protocolo" atualizada com `tipo`/`dados`;
+  seção "Exemplos de uso" documentando casos práticos de cada skill.
+
+- **`examples.py` (novo):** 14 exemplos prontos de payloads (previsão, tabela, gráfico,
+  métricas, alerta, QR, tarefas, markdown). Copia direto e cola no `nc` para testar.
 
 ### Changed
 
