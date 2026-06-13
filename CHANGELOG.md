@@ -5,6 +5,48 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/), e este projeto
 adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.4.0] — 2026-06-13
+
+### Added
+
+- **`logo.py` (novo):** constante `HERMES_LOGO_ASCII` (arte ASCII do projeto,
+  embutida no README) e função `render_logo(cor) → RenderableType` que gera o logo
+  via pyfiglet (font `doom`) com fallback hand-crafted. Executável standalone:
+  `python logo.py` imprime o logo diretamente no terminal.
+
+- **Tela de boas-vindas elaborada:** substitui o placeholder Markdown antigo por
+  uma tela completa com logo do projeto, grade de informações do sistema (host TCP,
+  porta, versão, hora de boot) e mensagem de status. Renderizada pela função
+  `render_boas_vindas(dados)` em `renderers.py`.
+
+- **Boas-vindas customizável via MCP:** o agente pode alterar a tela inicial sem
+  reiniciar a TUI:
+  - `personalizar_boas_vindas(titulo, subtitulo, mensagem, cor_tema)` — sobrescreve
+    a tela com parâmetros escolhidos; a cor muda o tema visual inteiro (logo + bordas).
+  - `resetar_boas_vindas()` — restaura o padrão com logo verde neon.
+
+- **Protocolo estendido (`acao`):** dois novos valores:
+  - `"set_welcome"` — define a tela de boas-vindas atual (suporta `tipo: "boas_vindas"`
+    ou `tipo: "markdown"` com `conteudo`).
+  - `"reset_welcome"` — restaura o default. Ambos persistem até o próximo reset ou
+    reinício da TUI.
+
+- **`acao: "clear"` aprimorado:** agora exibe a tela de boas-vindas *atual*
+  (customizada ou padrão) em vez de um Markdown hardcoded. Tecla `C` também segue
+  o mesmo comportamento.
+
+### Changed
+
+- **`tui_display.py`:** removida a constante `WELCOME_MARKDOWN`; adicionado atributo
+  de instância `self._welcome` inicializado em `on_mount` com `render_boas_vindas`.
+  `compose()` não define mais conteúdo inicial — o conteúdo é definido em `on_mount`
+  após o servidor TCP ser registrado.
+- **`renderers.py`:** adicionados `render_boas_vindas` ao registry `RENDERERS` e
+  título `"⌂  BOAS-VINDAS"` ao dicionário `TITULOS_SKILL`.
+- **README.md:** logo ASCII no cabeçalho; tabela de skills atualizada com as novas
+  ferramentas; seção de exemplos inclui exemplo 8 (boas-vindas customizável) com
+  payloads de `set_welcome` e `reset_welcome`.
+
 ## [1.3.0] — 2026-06-13
 
 ### Added

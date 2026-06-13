@@ -40,7 +40,7 @@ from textual.containers import Horizontal, ScrollableContainer
 from textual.reactive import reactive
 from textual.widgets import Footer, RichLog, Static
 
-from renderers import RENDERERS, TITULOS_SKILL
+from renderers import RENDERERS, TITULOS_SKILL, render_boas_vindas
 
 # --------------------------------------------------------------------------- #
 # Configuração
@@ -50,21 +50,6 @@ PORT: int = int(os.getenv("HERMES_TUI_PORT", "9999"))
 
 # Tamanho máximo de uma única linha NDJSON aceita (proteção contra payloads enormes).
 MAX_LINE_BYTES: int = 4 * 1024 * 1024  # 4 MiB
-
-WELCOME_MARKDOWN: str = """\
-# HERMES AGENT OS
-
-> Monitor visual pronto. Aguardando comandos do agente...
-
-O painel principal renderiza **Markdown** completo: títulos, listas, tabelas e
-blocos de código. O agente atualiza esta tela através da ferramenta MCP
-`atualizar_monitor`.
-
-```text
-status: online
-canal : TCP NDJSON
-```
-"""
 
 
 class HermesHeader(Static):
@@ -168,14 +153,18 @@ class HermesDashboard(App):
         with Horizontal(id="body"):
             with ScrollableContainer(id="main-panel") as panel:
                 panel.border_title = "PAINEL PRINCIPAL"
-                yield Static(Markdown(WELCOME_MARKDOWN), id="content")
+                yield Static(id="content")
             log = RichLog(id="sidebar", highlight=True, markup=True, wrap=True)
             log.border_title = "ACTIVITY LOG"
             yield log
         yield Footer()
 
     def on_mount(self) -> None:
-        """Inicia o servidor TCP em segundo plano dentro do loop do Textual."""
+        """Inicia o servidor TCP e exibe a tela de boas-vindas."""
+        self._welcome: RenderableType = render_boas_vindas(
+            {"host": HOST, "porta": PORT}
+        )
+        self._set_content(self._welcome)
         self._log("INFO", f"TUI iniciada. Servidor TCP em {HOST}:{PORT}")
         self.run_worker(
             self._serve(), name="tcp-server", group="net", exclusive=True
@@ -253,8 +242,18 @@ class HermesDashboard(App):
 
         if acao == "clear":
             self._set_panel_title("PAINEL PRINCIPAL")
-            self._set_markdown(WELCOME_MARKDOWN)
+            self._set_content(self._welcome)
             self._log("INFO", "Painel limpo pelo agente.")
+        elif acao == "set_welcome":
+            self._welcome = self._render_welcome_payload(tipo, payload)
+            self._set_panel_title("⌂  BOAS-VINDAS")
+            self._set_content(self._welcome)
+            self._log("INFO", "Tela de boas-vindas personalizada pelo agente.")
+        elif acao == "reset_welcome":
+            self._welcome = render_boas_vindas({"host": HOST, "porta": PORT})
+            self._set_panel_title("PAINEL PRINCIPAL")
+            self._set_content(self._welcome)
+            self._log("INFO", "Tela de boas-vindas restaurada para o padrão.")
         elif tipo != "markdown" and tipo in RENDERERS:
             self._render_skill(tipo, payload.get("dados", {}))
         else:
@@ -269,6 +268,18 @@ class HermesDashboard(App):
             self._log("AGENTE", str(log_msg))
 
         self._mark_updated()
+
+    def _render_welcome_payload(self, tipo: str, payload: dict[str, Any]) -> RenderableType:
+        """Constrói o renderable da tela de boas-vindas a partir de um payload set_welcome."""
+        if tipo == "boas_vindas":
+            dados = payload.get("dados", {})
+            if isinstance(dados, dict):
+                dados.setdefault("host", HOST)
+                dados.setdefault("porta", PORT)
+            return render_boas_vindas(dados if isinstance(dados, dict) else {})
+        # Fallback: markdown literal.
+        conteudo = payload.get("conteudo", "")
+        return Markdown(str(conteudo))
 
     def _render_skill(self, tipo: str, dados: dict[str, Any]) -> None:
         """Invoca o renderizador da skill e exibe o resultado no painel."""
@@ -343,7 +354,7 @@ class HermesDashboard(App):
     def action_clear_panel(self) -> None:
         """Limpa o painel principal (atalho `C`)."""
         self._set_panel_title("PAINEL PRINCIPAL")
-        self._set_markdown(WELCOME_MARKDOWN)
+        self._set_content(self._welcome)
         self._log("INFO", "Painel limpo manualmente.")
 
 

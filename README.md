@@ -1,5 +1,15 @@
 # Hermes Terminal Dashboard
 
+```
+ _   _ _____ ____  __  __ _____ ____
+| | | | ____|  _ \|  \/  | ____/ ___|
+| |_| |  _| | |_) | |\/| |  _| \___ \
+|  _  | |___|  _ <| |  | | |___ ___) |
+|_| |_|_____|_| \_\_|  |_|_____|____/
+
+  A G E N T   O S   ·   T E R M I N A L   D A S H B O A R D   v1.4.0
+```
+
 > Um plugin **MCP (Model Context Protocol)** que dá a um agente de IA (Hermes) a
 > capacidade de **exibir informações visuais** em um monitor físico ligado a um
 > dispositivo Linux em modo CLI/terminal — sem X11/Wayland (ex.: Orange Pi com
@@ -50,7 +60,7 @@ Dois formatos, ambos suportados:
 | `conteudo` | Markdown a renderizar (usado quando `tipo` é `markdown`).           |
 | `dados`    | Objeto estruturado, específico de cada skill (quando `tipo` != md). |
 | `log`      | Linha adicionada ao log lateral (opcional).                        |
-| `acao`     | `update` (default) ou `clear` (limpa o painel).                    |
+| `acao`     | `update` (default), `clear`, `set_welcome`, `reset_welcome`.       |
 
 > **Compatibilidade:** sem o campo `tipo`, o comportamento é idêntico ao original
 > (renderiza `conteudo` como Markdown).
@@ -71,6 +81,8 @@ ncurses.
 | `exibir_qrcode`           | `qrcode`         | QR Code em ASCII                                      |
 | `exibir_tarefas`          | `tarefas`        | Checklist com ✓/☐ e prioridades                       |
 | `atualizar_monitor`       | `markdown`       | Markdown livre (texto genérico)                       |
+| `personalizar_boas_vindas`| `boas_vindas`    | Tela inicial: logo + cor + mensagem customizados       |
+| `resetar_boas_vindas`     | —                | Restaura a tela de boas-vindas padrão com logo         |
 
 Exemplos de payload para teste via `nc` (uma linha cada):
 
@@ -444,6 +456,37 @@ Mostra status (`✓`/`☐`) e prioridade colorida.
     ]
   }
 }
+```
+
+#### 8. Tela de boas-vindas customizável
+
+A tela inicial (exibida no boot e ao pressionar `C`) mostra o logo do projeto com
+informações de sistema. O agente pode personalizá-la e a customização persiste até
+um reset ou reinício da TUI.
+
+```python
+# Personalizar: mudar cor do tema e mensagem de boas-vindas
+{
+  "acao": "set_welcome",
+  "tipo": "boas_vindas",
+  "dados": {
+    "mensagem": "Sistema de produção — acesso restrito",
+    "cor_tema":  "#ff5c7c",      # vermelho neon
+    "subtitulo": "Monitoramento 24/7"
+  }
+}
+
+# Restaurar o padrão com logo verde original
+{"acao": "reset_welcome"}
+```
+
+Via `nc`:
+```bash
+# Personalizar
+printf '{"acao":"set_welcome","tipo":"boas_vindas","dados":{"mensagem":"Olá!","cor_tema":"#00e5ff"}}\n' | nc 127.0.0.1 9999
+
+# Resetar
+printf '{"acao":"reset_welcome"}\n' | nc 127.0.0.1 9999
 ```
 
 **Ver arquivo `examples.py` para payloads prontos de cada skill.**

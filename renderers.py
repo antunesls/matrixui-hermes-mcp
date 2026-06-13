@@ -15,6 +15,7 @@ Schemas de `dados` por skill estão documentados na docstring de cada `render_*`
 from __future__ import annotations
 
 import io
+from datetime import datetime
 from typing import Any, Callable
 
 from rich.align import Align
@@ -368,6 +369,54 @@ def render_qrcode(dados: dict[str, Any]) -> RenderableType:
     )
 
 
+def render_boas_vindas(dados: dict[str, Any]) -> RenderableType:
+    """Tela de boas-vindas com logo do projeto e painel de informações do sistema.
+
+    Schema de `dados` (todos opcionais — sem nada, exibe o padrão):
+        {
+          "titulo":    "HERMES AGENT OS",
+          "subtitulo": "Terminal Dashboard",
+          "mensagem":  "Aguardando comandos do agente...",
+          "cor_tema":  "#00ff9c",
+          "host":      "127.0.0.1",
+          "porta":     9999,
+          "versao":    "1.4.0"
+        }
+    """
+    from logo import VERSION, render_logo
+
+    cor = str(dados.get("cor_tema", NEON_GREEN))
+    subtitulo = str(dados.get("subtitulo", "Terminal Dashboard  ·  Modo de Espera"))
+    mensagem = str(dados.get("mensagem", "◈  Aguardando comandos do agente...  ◈"))
+    host = str(dados.get("host", "127.0.0.1"))
+    porta = str(dados.get("porta", "9999"))
+    versao = str(dados.get("versao", VERSION))
+    boot_time = datetime.now().strftime("%Y-%m-%d  %H:%M:%S")
+
+    logo = render_logo(cor=cor)
+
+    # Grade de informações do sistema.
+    info = Table.grid(padding=(0, 4))
+    info.add_column(justify="right", style=f"dim {cor}")
+    info.add_column(justify="left", style="bold")
+    info.add_row("CANAL", f"TCP NDJSON  ·  {host}:{porta}")
+    info.add_row("VERSÃO", f"v{versao}")
+    info.add_row("BOOT", boot_time)
+    info.add_row("STATUS", f"[bold {NEON_GREEN}]◉  ONLINE[/bold {NEON_GREEN}]")
+
+    info_panel = Panel(
+        Align.center(info),
+        border_style=f"dim {cor}",
+        padding=(0, 6),
+    )
+
+    sep = Text("─" * 56, style=f"dim {cor}", justify="center")
+    msg = Text(mensagem, style=f"bold {cor}", justify="center")
+    sub = Text(subtitulo, style="dim", justify="center")
+
+    return Group(logo, Text(), info_panel, sep, msg, sub)
+
+
 def render_tarefas(dados: dict[str, Any]) -> RenderableType:
     """Lista de tarefas / checklist com prioridades coloridas.
 
@@ -414,6 +463,7 @@ RENDERERS: dict[str, Callable[[dict[str, Any]], RenderableType]] = {
     "alerta": render_alerta,
     "qrcode": render_qrcode,
     "tarefas": render_tarefas,
+    "boas_vindas": render_boas_vindas,
 }
 
 # Títulos amigáveis para o border_title do painel principal.
@@ -425,4 +475,5 @@ TITULOS_SKILL: dict[str, str] = {
     "alerta": "🚨 ALERTA",
     "qrcode": "🔳 QR CODE",
     "tarefas": "✅ TAREFAS",
+    "boas_vindas": "⌂  BOAS-VINDAS",
 }

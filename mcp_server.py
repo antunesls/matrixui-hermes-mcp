@@ -338,6 +338,59 @@ async def exibir_tarefas(
 
 
 @mcp.tool()
+async def personalizar_boas_vindas(
+    titulo: str | None = None,
+    subtitulo: str | None = None,
+    mensagem: str | None = None,
+    cor_tema: str | None = None,
+) -> str:
+    """Personaliza a tela de boas-vindas do monitor (exibida ao ligar e ao limpar).
+
+    USE quando o usuário pedir para **personalizar/customizar a tela inicial**, mudar
+    o que aparece quando o monitor liga, ou definir uma mensagem de boas-vindas.
+    A personalização persiste até um reset ou reinício da TUI.
+
+    Args:
+        titulo:     (Opcional) Título exibido no logo/cabeçalho. Ex.: "MEU PAINEL".
+        subtitulo:  (Opcional) Linha de subtítulo abaixo do status.
+        mensagem:   (Opcional) Mensagem de status central na tela.
+        cor_tema:   (Opcional) Cor hex do tema. Ex.: "#ff5c7c" (vermelho neon),
+                    "#00e5ff" (ciano neon), "#ffd166" (amarelo neon).
+                    Default: "#00ff9c" (verde neon).
+
+    Returns:
+        String de status (sucesso ou erro).
+    """
+    dados: dict[str, Any] = {}
+    if titulo:
+        dados["titulo"] = titulo
+    if subtitulo:
+        dados["subtitulo"] = subtitulo
+    if mensagem:
+        dados["mensagem"] = mensagem
+    if cor_tema:
+        dados["cor_tema"] = cor_tema
+    return await _enviar_payload(
+        {"acao": "set_welcome", "tipo": "boas_vindas", "dados": dados}
+    )
+
+
+@mcp.tool()
+async def resetar_boas_vindas() -> str:
+    """Restaura a tela de boas-vindas padrão do Hermes (com logo do projeto).
+
+    USE quando o usuário pedir para **restaurar/resetar a tela inicial** ao padrão,
+    ou desfazer uma personalização anterior.
+
+    Returns:
+        String de status (sucesso ou erro).
+    """
+    return await _enviar_payload(
+        {"acao": "reset_welcome", "log": "Tela de boas-vindas restaurada."}
+    )
+
+
+@mcp.tool()
 async def limpar_monitor() -> str:
     """Limpa o painel principal do monitor físico, voltando à tela inicial.
 
