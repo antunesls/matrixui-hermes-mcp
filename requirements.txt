@@ -1,0 +1,9 @@
+# Hermes Terminal Dashboard — dependências
+# Python 3.10+ recomendado.
+
+# Interface visual de terminal (TUI)
+textual>=0.80
+rich>=13.7
+
+# SDK oficial do Model Context Protocol (inclui mcp.server.fastmcp.FastMCP e a CLI `mcp`)
+mcp[cli]>=1.2

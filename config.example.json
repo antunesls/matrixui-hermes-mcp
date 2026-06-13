@@ -1,0 +1,15 @@
+{
+  "_comentario": "Exemplo de configuração de servidor MCP para o agente Hermes. Copie o bloco 'hermes-monitor' para dentro do 'mcpServers' do seu config.json real e ajuste o caminho absoluto e o interpretador Python.",
+  "mcpServers": {
+    "hermes-monitor": {
+      "command": "python",
+      "args": [
+        "/home/orangepi/matrixui/mcp_server.py"
+      ],
+      "env": {
+        "HERMES_TUI_HOST": "127.0.0.1",
+        "HERMES_TUI_PORT": "9999"
+      }
+    }
+  }
+}

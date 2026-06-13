@@ -1,0 +1,43 @@
+# Hermes Terminal Dashboard — unit systemd para rodar a TUI no TTY1.
+#
+# Instalação:
+#   sudo cp hermes-tui.service /etc/systemd/system/hermes-tui.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now hermes-tui.service
+#
+# Ajuste: User, WorkingDirectory, ExecStart (caminho do venv/python) e o TTY.
+# Veja o README para a configuração de autologin do getty@tty1 (opcional,
+# necessário apenas se você quiser também um shell logado; este serviço já
+# assume o controle do TTY1 por conta própria).
+
+[Unit]
+Description=Hermes Terminal Dashboard (TUI)
+After=systemd-user-sessions.service getty@tty1.service
+Conflicts=getty@tty1.service
+
+[Service]
+Type=simple
+User=orangepi
+WorkingDirectory=/home/orangepi/matrixui
+
+# Use o python do seu virtualenv, se houver:
+#   ExecStart=/home/orangepi/matrixui/.venv/bin/python /home/orangepi/matrixui/tui_display.py
+ExecStart=/usr/bin/python3 /home/orangepi/matrixui/tui_display.py
+
+Environment=HERMES_TUI_HOST=127.0.0.1
+Environment=HERMES_TUI_PORT=9999
+Environment=TERM=linux
+
+# Conecta o processo diretamente ao monitor físico (TTY1).
+StandardInput=tty
+StandardOutput=tty
+StandardError=journal
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
