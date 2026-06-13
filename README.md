@@ -61,52 +61,78 @@ pip install -r requirements.txt
 
 ### Rodando a TUI no monitor físico (TTY1)
 
-#### Opção A — systemd + autologin *(recomendada, sobe no boot)*
+#### Opção A — getty@tty1 + .bash_profile *(recomendada, testada em produção)*
 
-A TUI precisa "tomar conta" do TTY1. A forma mais robusta é um serviço systemd:
+A forma mais simples e confiável: getty faz login automático, e o `.bash_profile`
+inicia a TUI. Use o script automatizado:
 
 ```bash
-# 1. Ajuste os caminhos/usuário dentro do arquivo e instale:
+# Copie o repositório para a Orange Pi e execute:
+sudo bash install.sh <SEU_USUARIO>
+```
+
+Se preferir fazer manualmente:
+
+1. Configure o override do getty:
+
+```bash
+sudo systemctl edit getty@tty1
+```
+
+Adicione na seção `[Service]`:
+
+```ini
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin <SEU_USUARIO> --noclear %I $TERM
+Restart=always
+RestartSec=3
+```
+
+2. Adicione o bloco TTY1 ao `~/.bash_profile`:
+
+```bash
+if [ "$(tty)" = "/dev/tty1" ]; then
+    cd ~/matrixui && source .venv/bin/activate && exec python tui_display.py
+fi
+```
+
+3. Habilite e inicie:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now getty@tty1
+```
+
+Ao rebootar, a TUI aparece automaticamente no monitor.
+
+#### Opção B — systemd (hermes-tui.service) *(alternativa: sem login shell)*
+
+Se você prefere que o systemd reclame o TTY1 diretamente (sem shell de login):
+
+```bash
+# Ajuste os caminhos/usuário dentro do arquivo e instale:
 sudo cp hermes-tui.service /etc/systemd/system/hermes-tui.service
 sudo systemctl daemon-reload
+sudo systemctl disable getty@tty1   # evita conflito
 sudo systemctl enable --now hermes-tui.service
 ```
 
-O unit já declara `Conflicts=getty@tty1.service` e assume o `/dev/tty1`, então a TUI
-aparece sozinha no monitor a cada boot e reinicia caso caia (`Restart=always`).
+O unit declara `Conflicts=getty@tty1.service` e assume o `/dev/tty1`, reiniciando
+automaticamente se cair (`Restart=always`).
 
-> **Autologin do getty (opcional):** se você prefere manter um shell de login no TTY1
-> e iniciar a TUI a partir dele (em vez do serviço acima dominar o TTY), configure o
-> autologin e chame a TUI no `~/.bash_profile`:
->
-> ```bash
-> sudo systemctl edit getty@tty1
-> ```
-> Conteúdo:
-> ```ini
-> [Service]
-> ExecStart=
-> ExecStart=-/sbin/agetty --autologin orangepi --noclear %I $TERM
-> ```
-> E no `~/.bash_profile` do usuário:
-> ```bash
-> if [ "$(tty)" = "/dev/tty1" ]; then
->   cd ~/matrixui && source .venv/bin/activate && exec python tui_display.py
-> fi
-> ```
-
-#### Opção B — `openvt` (sob demanda)
+#### Opção C — `openvt` (sob demanda)
 
 Inicia a TUI em um terminal virtual livre e troca para ele:
 
 ```bash
-sudo openvt -c 1 -s -- python /home/orangepi/matrixui/tui_display.py
+sudo openvt -c 1 -s -- python ~/matrixui/tui_display.py
 ```
 
-#### Opção C — `tmux` (inspecionável)
+#### Opção D — `tmux` (inspecionável)
 
 ```bash
-tmux new-session -d -s hermes 'python /home/orangepi/matrixui/tui_display.py'
+tmux new-session -d -s hermes 'python ~/matrixui/tui_display.py'
 tmux attach -t hermes   # para visualizar
 ```
 
@@ -120,7 +146,7 @@ Use o `config.example.json` como base. Copie o bloco `hermes-monitor` para dentr
   "mcpServers": {
     "hermes-monitor": {
       "command": "python",
-      "args": ["/home/orangepi/matrixui/mcp_server.py"],
+      "args": ["/home/<SEU_USUARIO>/matrixui/mcp_server.py"],
       "env": {
         "HERMES_TUI_HOST": "127.0.0.1",
         "HERMES_TUI_PORT": "9999"
@@ -130,7 +156,7 @@ Use o `config.example.json` como base. Copie o bloco `hermes-monitor` para dentr
 }
 ```
 
-> Use o `python` do virtualenv (ex.: `/home/orangepi/matrixui/.venv/bin/python`) para
+> Use o `python` do virtualenv (ex.: `/home/<SEU_USUARIO>/matrixui/.venv/bin/python`) para
 > garantir que as dependências sejam encontradas.
 
 ### Testando
@@ -185,17 +211,29 @@ systemctl status getty@tty1   # confirma que está ativo
 
 #### TUI não aparece no monitor
 
-Se a TUI não renderiza ou cai constantemente:
+Se a TUI não renderiza após reboot:
+
+**Se você está usando Opção A (getty + .bash_profile):**
+
+```bash
+systemctl is-active getty@tty1   # confirma que getty está ativo
+systemctl status getty@tty1      # mostra se há erros
+journalctl -u getty@tty1 -n 30 --no-pager   # logs do getty
+cat ~/.bash_profile | grep -A 3 'HERMES TUI LAUNCHER'   # verifica o bloco TTY1
+python ~/matrixui/tui_display.py   # testa a TUI manualmente
+```
+
+**Se você está usando Opção B (hermes-tui.service):**
 
 ```bash
 systemctl status hermes-tui.service   # status do serviço
 journalctl -u hermes-tui.service -n 50 --no-pager   # últimos 50 logs
 ```
 
-Causas comuns:
-- Caminho do `ExecStart` incorreto no `.service` → edite `/etc/systemd/system/hermes-tui.service`.
-- Python ou dependências não instaladas → verifique a virtualenv.
-- Permissões de TTY → confirme que o usuário `orangepi` tem acesso a `/dev/tty1`.
+Causas comuns em ambos os casos:
+- Virtualenv não criada ou dependências não instaladas → `pip install -r requirements.txt`.
+- Python ou path incorreto no `.bash_profile` ou `.service` → edite e verifique os caminhos.
+- Permissões de TTY → confirme que o usuário tem acesso a `/dev/tty1`.
 
 #### Porta 9999 já em uso
 
@@ -251,9 +289,10 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**Run the TUI on TTY1** — recommended: install the bundled systemd unit
-(`hermes-tui.service`), which claims `/dev/tty1`, auto-starts on boot and restarts on
-failure. Alternatives: `openvt -c 1 -s -- python tui_display.py` or a `tmux` session.
+**Run the TUI on TTY1** — recommended: use the `install.sh` script to set up getty@tty1
+autologin + .bash_profile launcher (tested in production). Alternative: use the bundled
+`hermes-tui.service` if you prefer systemd to claim `/dev/tty1` directly. Other options:
+`openvt` or `tmux`.
 
 **Wire it into the agent** — copy the `hermes-monitor` block from `config.example.json`
 into your agent's `config.json` under `mcpServers`, pointing `args` at the absolute path
@@ -275,11 +314,12 @@ mcp dev mcp_server.py
 **Troubleshooting**
 
 - *getty@tty1 won't start on boot* — Create an override: `sudo systemctl edit getty@tty1`, add
-  `[Service]`, `ExecStart=` (clear line), then `ExecStart=-/sbin/agetty --autologin orangepi --noclear %I $TERM`,
+  `[Service]`, `ExecStart=` (clear line), then `ExecStart=-/sbin/agetty --autologin <YOUR_USER> --noclear %I $TERM`,
   `Restart=always`, `RestartSec=3`. Reload: `sudo systemctl daemon-reload && systemctl is-active getty@tty1`.
 
-- *TUI not appearing* — Check `systemctl status hermes-tui.service` and logs with
-  `journalctl -u hermes-tui.service -n 50 --no-pager`. Verify Python path and permissions on `/dev/tty1`.
+- *TUI not appearing* — For option A (getty + .bash_profile): check `systemctl status getty@tty1` and
+  `journalctl -u getty@tty1 -n 30 --no-pager`. Verify `.bash_profile` contains the launcher block. For option B
+  (hermes-tui.service): check `systemctl status hermes-tui.service`. In both cases, verify venv and Python path.
 
 - *Port 9999 in use* — Find owner: `ss -tlnp | grep 9999`. Change port via `HERMES_TUI_PORT=9998` env var in
-  service file and agent config.
+  service file (option B) or `.service` override and agent config.

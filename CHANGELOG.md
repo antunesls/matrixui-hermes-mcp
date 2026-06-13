@@ -5,6 +5,27 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/), e este projeto
 adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.2.0] — 2026-06-13
+
+### Changed
+
+- **Abordagem recomendada alterada:** getty@tty1 + .bash_profile agora é a **Opção A**
+  (testada em produção, mais simples e confiável).
+- **hermes-tui.service rebaixado:** agora é a **Opção B** (alternativa para quem prefere
+  systemd reclama o TTY1 diretamente).
+- **Removidos hardcodes:** todas as referências a `orangepi` foram substituídas por
+  `<SEU_USUARIO>` ou `$HERMES_USER` para ser agnóstico do nome de usuário.
+
+### Fixed
+
+- **install.sh:** bug crítico no heredoc do override do getty — single-quoted `'EOF'`
+  impedia expansão de `$HERMES_USER`. Mudado para double-quoted `"EOF"` com escape de
+  `$TERM`. Agora o script gera o override correto para qualquer nome de usuário.
+- **install.sh:** removido passo obrigatório de instalação do `hermes-tui.service` —
+  agora foca em getty + bash_profile (fluxo simplificado).
+- **Troubleshooting:** seção "TUI não aparece no monitor" atualizada para diagnosticar
+  via getty@tty1 (Opção A) e hermes-tui.service (Opção B).
+
 ## [1.1.0] — 2026-06-13
 
 ### Added

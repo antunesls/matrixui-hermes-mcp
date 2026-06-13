@@ -96,10 +96,10 @@ GETTY_OVERRIDE_FILE="$GETTY_OVERRIDE_DIR/override.conf"
 
 mkdir -p "$GETTY_OVERRIDE_DIR"
 
-cat > "$GETTY_OVERRIDE_FILE" << 'EOF'
+cat > "$GETTY_OVERRIDE_FILE" << EOF
 [Service]
 ExecStart=
-ExecStart=-/sbin/agetty --autologin orangepi --noclear %I $TERM
+ExecStart=-/sbin/agetty --autologin ${HERMES_USER} --noclear %I \$TERM
 Restart=always
 RestartSec=3
 EOF
@@ -107,35 +107,16 @@ EOF
 log_success "Override do getty@tty1 criado/atualizado"
 
 # =========================================================================
-# 2. Instalar hermes-tui.service
+# 2. Habilitar getty@tty1
 # =========================================================================
-log_info "Instalando hermes-tui.service..."
-
-# Copiar o arquivo e fazer substituições
-sed \
-    -e "s|User=orangepi|User=$HERMES_USER|g" \
-    -e "s|WorkingDirectory=/home/orangepi/matrixui|WorkingDirectory=$HERMES_DIR|g" \
-    -e "s|/home/orangepi/matrixui/.venv/bin/python|$PYTHON_BIN|g" \
-    -e "s|/usr/bin/python3 /home/orangepi/matrixui/tui_display.py|$PYTHON_BIN $HERMES_DIR/tui_display.py|g" \
-    -e "s|HERMES_TUI_HOST=127.0.0.1|HERMES_TUI_HOST=$TUI_HOST|g" \
-    -e "s|HERMES_TUI_PORT=9999|HERMES_TUI_PORT=$TUI_PORT|g" \
-    "$HERMES_DIR/hermes-tui.service" > "/etc/systemd/system/hermes-tui.service"
-
-log_success "Service instalado em /etc/systemd/system/hermes-tui.service"
-
-# =========================================================================
-# 3. Daemon-reload e habilitar serviço
-# =========================================================================
-log_info "Recarregando configuração do systemd..."
+log_info "Habilitando getty@tty1 com systemctl..."
 systemctl daemon-reload
+systemctl enable --now getty@tty1
 
-log_info "Habilitando hermes-tui.service..."
-systemctl enable --now hermes-tui.service
-
-log_success "Serviço hermes-tui habilitado e iniciado"
+log_success "getty@tty1 habilitado e iniciado"
 
 # =========================================================================
-# 4. Configurar ~/.bash_profile
+# 3. Configurar ~/.bash_profile
 # =========================================================================
 log_info "Configurando ~/.bash_profile do usuário $HERMES_USER..."
 
@@ -178,16 +159,16 @@ echo -e "${GREEN}╚════════════════════
 echo
 
 echo "Resumo do que foi feito:"
-echo "  ✓ getty@tty1 configurado com autologin (usuário: orangepi)"
+echo "  ✓ getty@tty1 configurado com autologin (usuário: $HERMES_USER)"
 echo "  ✓ getty@tty1 com Restart=always e RestartSec=3"
-echo "  ✓ hermes-tui.service instalado e habilitado"
+echo "  ✓ getty@tty1 habilitado e iniciado"
 echo "  ✓ ~/.bash_profile configurado para iniciar TUI no TTY1"
 echo
 
 echo "Comandos de verificação:"
 echo -e "  ${BLUE}systemctl is-active getty@tty1${NC}"
-echo -e "  ${BLUE}systemctl is-active hermes-tui.service${NC}"
-echo -e "  ${BLUE}systemctl status hermes-tui.service${NC}"
+echo -e "  ${BLUE}systemctl status getty@tty1${NC}"
+echo -e "  ${BLUE}cat ~/.bash_profile | grep -A 3 'HERMES TUI LAUNCHER'${NC}"
 echo
 
 echo "Próximos passos:"
@@ -196,12 +177,13 @@ echo -e "     ${BLUE}sudo reboot${NC}"
 echo
 echo -e "  2. Após reboot, a TUI deve aparecer automaticamente no monitor TTY1."
 echo
-echo -e "  3. Para inspecionar logs em tempo real:"
-echo -e "     ${BLUE}journalctl -u hermes-tui.service -f${NC}"
+echo -e "  3. Para diagnosticar problemas:"
+echo -e "     ${BLUE}journalctl -u getty@tty1 -n 30 --no-pager${NC}"
+echo -e "     ${BLUE}cat ~/.bash_profile | grep -A 3 'HERMES TUI LAUNCHER'${NC}"
 echo
-echo -e "  4. Para parar/reiniciar o serviço manualmente:"
-echo -e "     ${BLUE}sudo systemctl stop hermes-tui.service${NC}"
-echo -e "     ${BLUE}sudo systemctl restart hermes-tui.service${NC}"
+echo -e "  4. Para parar/reiniciar o getty@tty1:"
+echo -e "     ${BLUE}sudo systemctl stop getty@tty1${NC}"
+echo -e "     ${BLUE}sudo systemctl restart getty@tty1${NC}"
 echo
 
 log_success "Instalação concluída!"
