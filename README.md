@@ -36,17 +36,66 @@ O projeto tem dois processos desacoplados que conversam por um **socket TCP loca
 
 ### Protocolo
 
-Mensagens em **JSON delimitado por newline (NDJSON)** — uma linha por mensagem:
+Mensagens em **JSON delimitado por newline (NDJSON)** — uma linha por mensagem.
+Dois formatos, ambos suportados:
 
 ```json
 {"conteudo": "# Título\n- item", "log": "Atualizando...", "acao": "update"}
+{"tipo": "previsao_tempo", "dados": {"local": "SP", "dias": [...]}, "log": "..."}
 ```
 
-| Campo      | Descrição                                              |
-|------------|--------------------------------------------------------|
-| `conteudo` | Markdown renderizado no painel principal (opcional).   |
-| `log`      | Linha adicionada ao log lateral (opcional).            |
-| `acao`     | `update` (default) ou `clear` (limpa o painel).        |
+| Campo      | Descrição                                                          |
+|------------|--------------------------------------------------------------------|
+| `tipo`     | Renderizador a usar. Default `markdown`. Skills: ver tabela abaixo. |
+| `conteudo` | Markdown a renderizar (usado quando `tipo` é `markdown`).           |
+| `dados`    | Objeto estruturado, específico de cada skill (quando `tipo` != md). |
+| `log`      | Linha adicionada ao log lateral (opcional).                        |
+| `acao`     | `update` (default) ou `clear` (limpa o painel).                    |
+
+> **Compatibilidade:** sem o campo `tipo`, o comportamento é idêntico ao original
+> (renderiza `conteudo` como Markdown).
+
+### Skills disponíveis
+
+Cada skill é uma ferramenta MCP dedicada que o agente Hermes pode invocar. Os dados
+são fornecidos pelo agente (o MCP não acessa rede); a TUI apenas os desenha em estilo
+ncurses.
+
+| Ferramenta MCP            | `tipo`           | O que renderiza                                      |
+|---------------------------|------------------|------------------------------------------------------|
+| `exibir_previsao_tempo`   | `previsao_tempo` | Cards de previsão do tempo com arte ASCII (wttr.in)  |
+| `exibir_tabela`           | `tabela`         | Tabela rica com bordas e cores                        |
+| `exibir_grafico`          | `grafico`        | Gráfico de barras (plotext, com fallback unicode)     |
+| `exibir_metricas`         | `metricas`       | Gauges/barras coloridas por limiar (CPU, RAM, KPIs)   |
+| `exibir_alerta`           | `alerta`         | Banner com texto gigante (pyfiglet)                   |
+| `exibir_qrcode`           | `qrcode`         | QR Code em ASCII                                      |
+| `exibir_tarefas`          | `tarefas`        | Checklist com ✓/☐ e prioridades                       |
+| `atualizar_monitor`       | `markdown`       | Markdown livre (texto genérico)                       |
+
+Exemplos de payload para teste via `nc` (uma linha cada):
+
+```bash
+# Previsão do tempo
+printf '{"tipo":"previsao_tempo","dados":{"local":"São Paulo","dias":[{"dia":"Hoje","condicao":"chuva","temp_max":24,"temp_min":17,"descricao":"Pancadas","umidade":80,"vento":"15 km/h"},{"dia":"Ter","condicao":"sol","temp_max":28,"temp_min":18,"descricao":"Ensolarado"}]}}\n' | nc 127.0.0.1 9999
+
+# Tabela
+printf '{"tipo":"tabela","dados":{"titulo":"Vendas","colunas":["Produto","Qtd"],"linhas":[["Café","12"],["Pão","30"]]}}\n' | nc 127.0.0.1 9999
+
+# Gráfico de barras
+printf '{"tipo":"grafico","dados":{"titulo":"Temp","unidade":"°C","series":[{"label":"Seg","valor":23},{"label":"Ter","valor":27},{"label":"Qua","valor":19}]}}\n' | nc 127.0.0.1 9999
+
+# Métricas / gauges
+printf '{"tipo":"metricas","dados":{"titulo":"Sistema","metricas":[{"label":"CPU","valor":42,"unidade":"%%"},{"label":"RAM","valor":6,"max":8,"unidade":"GB"},{"label":"Disco","valor":91,"unidade":"%%"}]}}\n' | nc 127.0.0.1 9999
+
+# Alerta / banner
+printf '{"tipo":"alerta","dados":{"texto":"BACKUP OK","nivel":"info","subtitulo":"concluído às 03:00"}}\n' | nc 127.0.0.1 9999
+
+# QR Code
+printf '{"tipo":"qrcode","dados":{"conteudo":"https://exemplo.com","legenda":"Aponte a câmera"}}\n' | nc 127.0.0.1 9999
+
+# Tarefas
+printf '{"tipo":"tarefas","dados":{"titulo":"Hoje","itens":[{"texto":"Comprar pão","feito":false,"prioridade":"alta"},{"texto":"Pagar conta","feito":true}]}}\n' | nc 127.0.0.1 9999
+```
 
 ### Instalação
 
@@ -278,9 +327,12 @@ Markdown on a physical monitor attached to a headless Linux device.
 - `tui_display.py` — a Textual/Rich TUI that runs on the monitor and opens an internal
   asyncio TCP server (port `9999`) to receive commands. Cyberpunk-styled layout: header
   with live clock + connection status, a 70% Markdown panel, and a 30% activity log.
-- `mcp_server.py` — an MCP server (official `mcp` SDK, stdio transport) exposing the
-  `atualizar_monitor` and `limpar_monitor` tools. It connects to the TUI socket, sends a
-  newline-delimited JSON payload, and returns a success/error string to the AI.
+- `mcp_server.py` — an MCP server (official `mcp` SDK, stdio transport) exposing
+  `atualizar_monitor`/`limpar_monitor` plus specialized **skills**: `exibir_previsao_tempo`
+  (weather cards), `exibir_tabela` (rich table), `exibir_grafico` (bar chart),
+  `exibir_metricas` (gauges), `exibir_alerta` (big-text banner), `exibir_qrcode`, and
+  `exibir_tarefas` (checklist). It sends a newline-delimited JSON payload to the TUI.
+- `renderers.py` — registry mapping each skill `tipo` to a Rich renderable (ncurses-style).
 
 **Install**
 

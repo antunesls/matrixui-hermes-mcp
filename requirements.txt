@@ -7,3 +7,8 @@ rich>=13.7
 
 # SDK oficial do Model Context Protocol (inclui mcp.server.fastmcp.FastMCP e a CLI `mcp`)
 mcp[cli]>=1.2
+
+# Skills de renderização (todas pure-python, leves)
+plotext>=5.2     # gráficos de barras no terminal
+pyfiglet>=1.0    # texto gigante ASCII (banners de alerta)
+qrcode>=7.4      # QR codes em ASCII

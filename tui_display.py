@@ -9,7 +9,13 @@ A aplicação sobe um servidor TCP interno (asyncio) em segundo plano para receb
 comandos vindos do servidor MCP (`mcp_server.py`). As mensagens trafegam como
 JSON delimitado por newline (NDJSON) — uma linha = uma mensagem — com o schema:
 
+    {"tipo": "<skill>", "dados": {...}, "log": "<linha de log>"}
     {"conteudo": "<markdown>", "log": "<linha de log>", "acao": "update|clear"}
+
+O campo `tipo` (default "markdown") seleciona um renderizador especializado do
+módulo `renderers.py` (previsao_tempo, tabela, grafico, metricas, alerta, qrcode,
+tarefas). Quando ausente ou "markdown", o campo `conteudo` é renderizado como
+Markdown — mantendo compatibilidade com o protocolo original.
 
 Execução:
     python tui_display.py
@@ -27,11 +33,14 @@ import os
 from datetime import datetime
 from typing import Any
 
+from rich.console import RenderableType
 from rich.markdown import Markdown
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer
 from textual.reactive import reactive
 from textual.widgets import Footer, RichLog, Static
+
+from renderers import RENDERERS, TITULOS_SKILL
 
 # --------------------------------------------------------------------------- #
 # Configuração
@@ -239,30 +248,65 @@ class HermesDashboard(App):
             return
 
         acao = str(payload.get("acao", "update")).lower()
-        conteudo = payload.get("conteudo")
+        tipo = str(payload.get("tipo", "markdown")).lower()
         log_msg = payload.get("log")
 
         if acao == "clear":
-            self._set_content(WELCOME_MARKDOWN)
+            self._set_panel_title("PAINEL PRINCIPAL")
+            self._set_markdown(WELCOME_MARKDOWN)
             self._log("INFO", "Painel limpo pelo agente.")
-        elif conteudo is not None:
-            self._set_content(str(conteudo))
+        elif tipo != "markdown" and tipo in RENDERERS:
+            self._render_skill(tipo, payload.get("dados", {}))
+        else:
+            conteudo = payload.get("conteudo")
+            if tipo != "markdown" and tipo not in RENDERERS:
+                self._log("ERRO", f"Tipo de renderização desconhecido: '{tipo}'")
+            elif conteudo is not None:
+                self._set_panel_title("PAINEL PRINCIPAL")
+                self._set_markdown(str(conteudo))
 
         if log_msg:
             self._log("AGENTE", str(log_msg))
 
         self._mark_updated()
 
+    def _render_skill(self, tipo: str, dados: dict[str, Any]) -> None:
+        """Invoca o renderizador da skill e exibe o resultado no painel."""
+        renderer = RENDERERS[tipo]
+        try:
+            renderable = renderer(dados if isinstance(dados, dict) else {})
+        except Exception as exc:  # noqa: BLE001 - dados vindos da rede
+            self._log("ERRO", f"Skill '{tipo}' falhou: {exc}")
+            self._set_panel_title("ERRO")
+            self._set_markdown(
+                f"# ⚠️ Erro ao renderizar `{tipo}`\n\n```\n{exc}\n```"
+            )
+            return
+        self._set_panel_title(TITULOS_SKILL.get(tipo, tipo.upper()))
+        self._set_content(renderable)
+        self._log("AGENTE", f"Skill renderizada: {tipo}")
+
     # ------------------------------------------------------------------ #
     # Helpers de atualização da UI
     # ------------------------------------------------------------------ #
-    def _set_content(self, markdown_text: str) -> None:
-        """Renderiza Markdown no painel principal."""
+    def _set_content(self, renderable: RenderableType) -> None:
+        """Exibe um renderable do Rich no painel principal."""
         try:
             content = self.query_one("#content", Static)
-            content.update(Markdown(markdown_text))
+            content.update(renderable)
         except Exception as exc:  # noqa: BLE001 - UI pode estar desmontando
             self._log("ERRO", f"Falha ao atualizar painel: {exc}")
+
+    def _set_markdown(self, markdown_text: str) -> None:
+        """Renderiza texto Markdown no painel principal."""
+        self._set_content(Markdown(markdown_text))
+
+    def _set_panel_title(self, title: str) -> None:
+        """Atualiza o título da borda do painel principal."""
+        try:
+            self.query_one("#main-panel", ScrollableContainer).border_title = title
+        except Exception:  # noqa: BLE001
+            pass
 
     def _log(self, level: str, message: str) -> None:
         """Adiciona uma linha colorida ao RichLog lateral."""
@@ -298,7 +342,8 @@ class HermesDashboard(App):
     # ------------------------------------------------------------------ #
     def action_clear_panel(self) -> None:
         """Limpa o painel principal (atalho `C`)."""
-        self._set_content(WELCOME_MARKDOWN)
+        self._set_panel_title("PAINEL PRINCIPAL")
+        self._set_markdown(WELCOME_MARKDOWN)
         self._log("INFO", "Painel limpo manualmente.")
 
 

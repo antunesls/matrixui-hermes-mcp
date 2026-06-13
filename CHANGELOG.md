@@ -5,6 +5,40 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/), e este projeto
 adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.3.0] — 2026-06-13
+
+### Added
+
+- **Protocolo estendido (`tipo` + `dados`):** o payload NDJSON agora aceita um campo
+  `tipo` que seleciona um renderizador especializado. Sem `tipo` (ou `tipo: "markdown"`),
+  o comportamento é idêntico ao original — **totalmente compatível**.
+
+- **`renderers.py` (novo):** registry de renderizadores que transforma `dados`
+  estruturados em renderables do Rich (Panel, Table, Columns, arte ASCII).
+
+- **7 skills de renderização**, cada uma com um tool MCP dedicado e docstring rica:
+  - `exibir_previsao_tempo` — cards de previsão do tempo estilo `wttr.in` (arte ASCII
+    por condição, temperaturas, umidade, vento).
+  - `exibir_tabela` — tabela rica (`rich.Table`) com bordas e cores.
+  - `exibir_grafico` — gráfico de barras via `plotext` (com fallback unicode).
+  - `exibir_metricas` — gauges/barras coloridas por limiar (verde/amarelo/vermelho).
+  - `exibir_alerta` — banner com texto gigante via `pyfiglet`, cor por nível.
+  - `exibir_qrcode` — QR code em ASCII via `qrcode`.
+  - `exibir_tarefas` — checklist com ✓/☐ e prioridades coloridas.
+
+- **Dependências:** `plotext>=5.2`, `pyfiglet>=1.0`, `qrcode>=7.4` (todas pure-python).
+
+- **README:** nova seção "Skills disponíveis" com tabela de ferramentas e exemplos de
+  payload para teste via `nc`; seção "Protocolo" atualizada com `tipo`/`dados`.
+
+### Changed
+
+- **`tui_display.py`:** `_processar_mensagem` agora despacha por `tipo` via registry;
+  `_set_content` aceita qualquer renderable do Rich (não só Markdown). Erros de
+  renderização são capturados e exibidos como fallback sem derrubar a TUI.
+- **`atualizar_monitor`:** docstring atualizada para orientar o uso das skills
+  especializadas quando os dados forem estruturados.
+
 ## [1.2.0] — 2026-06-13
 
 ### Changed
